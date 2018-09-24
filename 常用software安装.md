@@ -44,11 +44,11 @@
 
 	下图展示的即是tmux中使用`ctrl + b, w`的效果，展示了session、windows和pane的树形关系。
 
-	![](https://raw.githubusercontent.com/ernest-dzf/docs/master/tmux_session.png)
+	![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/tmux_session.png)
 
 	下图展示的是tmux的布局说明图。
 
-	![](https://raw.githubusercontent.com/ernest-dzf/docs/master/tmux_session_window_pane.png)
+	![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/tmux_session_window_pane.png)
 
 5. tmux常用操作
 

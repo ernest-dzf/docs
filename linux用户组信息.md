@@ -15,11 +15,18 @@
 
 ![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/group%E7%94%A8%E6%88%B7%E7%BB%84.png)
 
+比如上图，root用户组，用户组密码是`x`，表示没有设置密码；GID位0，root用户组下包括了`root`和`jackyin`这两个用户。
+
+这里涉及到用户组密码的概念。
+
+非本用户组的用户想切换到本用户组身份时，可以通过密码保证安全性。如果没有设置组密码，则只有属于本用户组的用户能够切换到本用户组的身份。
+
 # 关于/etc/password #
 
 /etc/passwd中一行记录对应着一个用户，每行记录又被冒号(:)分隔为7个字段，其格式和具体含义如下：
 
 *用户名:口令:用户标识号:组标识号:注释性描述:主目录:登录Shell*
+
 
 如下图所示：
 
@@ -85,3 +92,45 @@
 	6）系统会将/etc/skel目录下的内容复制到用户的HOME目录下 
 
 	7）系统为该用户账户在mail目录下创建一个用于接收邮件的文件
+
+	
+	`useradd`的高频用法如下：
+
+	|选项|说明|
+	|:--|:--|
+	|-c|备注文字，会保存在passwd的备注栏中|
+	|-d|指定用户登入时的起始目录。如果目录不存在，同时使用-m选项，可以创建主目录|
+	|-e|指定账号的过期时间，格式为YYYY-MM-DD；如果没有指定，那么使用useradd -D所展示的EXPIRE|
+	|-f|指定在密码过期多少天后，关闭该账号（permanently disabled）。0-密码过期立马关闭；-1-关闭该特性|
+	|-g|指定用户所属的群组，后面跟着group name 或者GID。如果没有指定，需要看/etc/login.defs里面的USERGROUPS_ENAB变量。<br/>如果是YES，那么就会创建一个和用户名一样的group name。如果是NO，那么就会将该账户添加到/etc/default/useradd中指定的GROUP中|
+	|-G|指定用户的附加群组|
+	|-m|自动建立用户的登入目录|
+	|-N|不要自动创建和用户名同名的group name，而是加入-g选项指定的group，或者/etc/default/useradd指定的默认group|
+	|-s|指定用户的登录shell|
+	|-u|用户的UID，一般可以不指定，由系统自动分配|
+
+
+## chown ##
+
+- `chown runoob:users file1.txt`
+
+	将文件 file1.txt 的拥有者设为 users 群体的使用者 runoob 
+- `chown -R lamport:users *`
+
+	将目前目录下的所有文件与子目录的拥有者皆设为 users 群体的使用者 lamport 
+
+## chgrp ##
+
+- `chgrp -v bin log2012.log`
+
+	改变文件的群组属性。
+
+		
+		[root@localhost test]# ll
+		---xrw-r-- 1 root root 302108 11-13 06:03 log2012.log
+		[root@localhost test]# chgrp -v bin log2012.log
+	
+	"log2012.log" 的所属组已更改为 bin。
+
+		[root@localhost test]# ll
+		---xrw-r-- 1 root bin  302108 11-13 06:03 log2012.log

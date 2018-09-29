@@ -108,6 +108,7 @@
 	|-N|不要自动创建和用户名同名的group name，而是加入-g选项指定的group，或者/etc/default/useradd指定的默认group|
 	|-s|指定用户的登录shell|
 	|-u|用户的UID，一般可以不指定，由系统自动分配|
+	|-r|创建一个系统用户，创建的系统用户默认是没有home目录的，不过可以使用-m选项来指定创建系统用户的目录|
 
 
 ## chown ##
@@ -151,3 +152,8 @@
 		[user_00@TENCENT64 ~]$ su victor
 		Password: 
 		bash-4.1$ 
+## groupadd ##
+
+- `groupadd mysql`
+
+	创建mysql组。

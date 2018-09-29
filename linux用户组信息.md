@@ -134,3 +134,20 @@
 
 		[root@localhost test]# ll
 		---xrw-r-- 1 root bin  302108 11-13 06:03 log2012.log
+
+## password ##
+
+修改账户密码，用法如下：
+
+		[root@TENCENT64 ~]# passwd victor
+		Changing password for user victor.
+		New password: 
+		BAD PASSWORD: it does not contain enough DIFFERENT characters
+		BAD PASSWORD: is too simple
+		Retype new password: 
+		passwd: all authentication tokens updated successfully.
+		[root@TENCENT64 ~]# exit
+		exit
+		[user_00@TENCENT64 ~]$ su victor
+		Password: 
+		bash-4.1$ 

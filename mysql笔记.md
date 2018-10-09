@@ -1,5 +1,73 @@
 # mysql 笔记 #
 ## 安装 ##
+这里以centos为例。
+### mysql 5.7安装 ###
+1. 官网下载linux generic binary包，地址：https://dev.mysql.com/downloads/mysql/
+2. 下载得到的是一个xxx.tar.gz的包，比如`mysql-5.7.23-linux-glibc2.12-x86_64.tar.gz`，解压得到`/usr/local/`目录下面去，比如
+
+		# victor @ localhost in /usr/local [8:40:55] 
+		$ ls
+		bin  etc  games  include  lib  lib64  libexec  mysql  mysql-5.7.23-linux-glibc2.12-x86_64  sbin  share  src
+3. 在`/usr/local`目录下建立一个软链接到`mysql-5.7.23-linux-glibc2.12-x86_64`目录
+
+		# victor @ localhost in /usr/local [8:44:20] C:1
+		$ ls
+		bin  etc  games  include  lib  lib64  libexec  mysql-5.7.23-linux-glibc2.12-x86_64  sbin  share  src
+		
+		# victor @ localhost in /usr/local [8:44:23] 
+		$ sudo ln -s mysql-5.7.23-linux-glibc2.12-x86_64 mysql
+		
+		# victor @ localhost in /usr/local [8:44:31] 
+		$ ls  
+		bin  etc  games  include  lib  lib64  libexec  mysql  mysql-5.7.23-linux-glibc2.12-x86_64  sbin  share  src
+		
+		# victor @ localhost in /usr/local [8:44:36] 
+		$ ls -l mysql
+		lrwxrwxrwx. 1 root root 35 Oct 10 08:44 mysql -> mysql-5.7.23-linux-glibc2.12-x86_64
+4. 安装一些依赖包
+
+		shell> yum search libaio  # search for info
+		shell> yum install libaio # install library
+
+5. 安装指令
+
+		shell> groupadd mysql
+		shell> useradd -r -g mysql -s /bin/false mysql
+		shell> cd /usr/local
+		shell> tar zxvf /path/to/mysql-VERSION-OS.tar.gz
+		shell> ln -s full-path-to-mysql-VERSION-OS mysql
+		shell> cd mysql
+		shell> mkdir mysql-files
+		shell> chown mysql:mysql mysql-files
+		shell> chmod 750 mysql-files
+		shell> bin/mysqld --initialize --user=mysql 
+		shell> bin/mysql_ssl_rsa_setup              
+		shell> bin/mysqld_safe --user=mysql &
+		# Next command is optional
+		shell> cp support-files/mysql.server /etc/init.d/mysql.server
+
+6. 添加环境变量
+
+	在`/etc/profile`文件末尾添加如下一行
+
+		export PATH=$PATH:/usr/local/mysql/bin
+	然后 `source /etc/profile`
+
+7. others
+
+	安装完成后可以看到`/usr/local/mysql`目录下的布局如下
+
+		# root @ localhost in /usr/local/mysql [8:54:53] 
+		$ pwd
+		/usr/local/mysql
+		
+		# root @ localhost in /usr/local/mysql [8:54:54] 
+		$ ls
+		bin  COPYING  data  docs  include  lib  man  mysql-files  README  share  support-files
+		
+		# root @ localhost in /usr/local/mysql [8:54:55]
+
+	其中data目录放的就是数据
 ## 事务 ##
 ## 日志 ##
 ## 基本概念 ##

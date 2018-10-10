@@ -46,6 +46,23 @@
 		# Next command is optional
 		shell> cp support-files/mysql.server /etc/init.d/mysql.server
 
+	上面中mysql.server脚本用于方便地启动、暂停、重启服务。比如下面这样：
+
+		# victor @ localhost in ~ [8:10:40] C:3
+		$ sudo /etc/init.d/mysql.server start
+		Starting MySQL.. SUCCESS! 
+		
+		# victor @ localhost in ~ [8:10:50] 
+		$ sudo /etc/init.d/mysql.server status
+		 SUCCESS! MySQL running (2095)
+		
+		# victor @ localhost in ~ [8:10:53] 
+		$ sudo /etc/init.d/mysql.server stop  
+		Shutting down MySQL.. SUCCESS! 
+		
+		# victor @ localhost in ~ [8:11:00] 
+		$ 
+
 6. 添加环境变量
 
 	在`/etc/profile`文件末尾添加如下一行
@@ -68,6 +85,38 @@
 		# root @ localhost in /usr/local/mysql [8:54:55]
 
 	其中data目录放的就是数据
+
+8. 如果想设置开机启动的话
+
+	为了方便，重命名一下先：
+
+		# root @ localhost in /etc/init.d [9:01:28] 
+		$ mv /etc/init.d/mysql.server mysqld
+
+	然后：		
+
+		# root @ localhost in /etc/init.d [9:01:10] C:1
+		$ chkconfig --add mysqld          
+		
+		# root @ localhost in /etc/init.d [9:01:18] 
+		$ chkconfig --list      
+		
+		Note: This output shows SysV services only and does not include native
+		      systemd services. SysV configuration data might be overridden by native
+		      systemd configuration.
+		
+		      If you want to list systemd services use 'systemctl list-unit-files'.
+		      To see services enabled on particular target use
+		      'systemctl list-dependencies [target]'.
+		
+		mysqld         	0:off	1:off	2:on	3:on	4:on	5:on	6:off
+		netconsole     	0:off	1:off	2:off	3:off	4:off	5:off	6:off
+		network        	0:off	1:off	2:on	3:on	4:on	5:on	6:off
+		vmware-tools   	0:off	1:off	2:on	3:on	4:on	5:on	6:off
+		vmware-tools-thinprint	0:off	1:off	2:on	3:on	4:on	5:on	6:off
+
+	可以看到mysqld在3、4、5运行级别下都是on，说明设置成功。
+
 ## 事务 ##
 ## 日志 ##
 ## 基本概念 ##

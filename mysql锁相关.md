@@ -60,3 +60,24 @@
 	- TRX_ADAPTIVE_HASH_TIMEOUT
 2. INNODB_LOCKS 表
 3. INNODB_LOCK_WAITS 表
+
+## SHOW OPEN TABLES ##
+
+show open tables用于查看现在打开了哪些表(不包括临时表)。
+
+这个命令主要可以用来在flush table回硬盘后，再看看这个命令的输出就会发现哪些表是很活跃的，哪些表是非活跃的。
+
+判断活跃性后，可进行相应表的flush和备份。另外结合show processlist也可以看到具体那个用户和线程锁定了某个具体的表。
+
+
+	Database                         Table                                In_use  Name_locked  
+	-------------------------------  -----------------------------------  ------  -------------
+	kf_debug_cdb_activities          ACT_RU_TASK                               0              0
+	cdm                              t_task                                    0              0
+	live                             relay_config                              0              0
+
+
+- Database：含有该表的数据库
+- Table：表名称
+- In_use：表当前被查询使用的次数。如果该数为零，则表是打开的，但是当前没有被使用。
+- Name_locked：表名称是否被锁定。名称锁定用于取消表或对表进行重命名等操作。

@@ -76,6 +76,7 @@
 	- ctrl + b Up|Down|Left|Right 根据按箭方向选择切换到某个pane
 	- ctrl + b z 最大化当前pane，再按一次后恢复
 	- ctrl + b x 关闭当前使用中的pane，操作之后会给出是否关闭的提示，按y确认即关闭
+	- ctrl + b [ 进入copy mode，然后可以使用pageUp和pageDown键scroll了，或者使用上下左右方向键，退出copy mode 按`q`就可以
 
 
 6. 参考文章

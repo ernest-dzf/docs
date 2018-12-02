@@ -1,131 +1,10 @@
-# mysql 笔记 #
-## 安装 ##
-这里以centos为例。
-### mysql 5.7安装 ###
-1. 官网下载linux generic binary包，地址：https://dev.mysql.com/downloads/mysql/
-2. 下载得到的是一个xxx.tar.gz的包，比如`mysql-5.7.23-linux-glibc2.12-x86_64.tar.gz`，解压得到`/usr/local/`目录下面去，比如
-
-		# victor @ localhost in /usr/local [8:40:55] 
-		$ ls
-		bin  etc  games  include  lib  lib64  libexec  mysql  mysql-5.7.23-linux-glibc2.12-x86_64  sbin  share  src
-3. 在`/usr/local`目录下建立一个软链接到`mysql-5.7.23-linux-glibc2.12-x86_64`目录
-
-		# victor @ localhost in /usr/local [8:44:20] C:1
-		$ ls
-		bin  etc  games  include  lib  lib64  libexec  mysql-5.7.23-linux-glibc2.12-x86_64  sbin  share  src
-		
-		# victor @ localhost in /usr/local [8:44:23] 
-		$ sudo ln -s mysql-5.7.23-linux-glibc2.12-x86_64 mysql
-		
-		# victor @ localhost in /usr/local [8:44:31] 
-		$ ls  
-		bin  etc  games  include  lib  lib64  libexec  mysql  mysql-5.7.23-linux-glibc2.12-x86_64  sbin  share  src
-		
-		# victor @ localhost in /usr/local [8:44:36] 
-		$ ls -l mysql
-		lrwxrwxrwx. 1 root root 35 Oct 10 08:44 mysql -> mysql-5.7.23-linux-glibc2.12-x86_64
-4. 安装一些依赖包
-
-		shell> yum search libaio  # search for info
-		shell> yum install libaio # install library
-
-5. 安装指令
-
-		shell> groupadd mysql
-		shell> useradd -r -g mysql -s /bin/false mysql
-		shell> cd /usr/local
-		shell> tar zxvf /path/to/mysql-VERSION-OS.tar.gz
-		shell> ln -s full-path-to-mysql-VERSION-OS mysql
-		shell> cd mysql
-		shell> mkdir mysql-files
-		shell> chown mysql:mysql mysql-files
-		shell> chmod 750 mysql-files
-		shell> bin/mysqld --initialize --user=mysql 
-		shell> bin/mysql_ssl_rsa_setup              
-		shell> bin/mysqld_safe --user=mysql &
-		# Next command is optional
-		shell> cp support-files/mysql.server /etc/init.d/mysql.server
-
-	上面中mysql.server脚本用于方便地启动、暂停、重启服务。比如下面这样：
-
-		# victor @ localhost in ~ [8:10:40] C:3
-		$ sudo /etc/init.d/mysql.server start
-		Starting MySQL.. SUCCESS! 
-		
-		# victor @ localhost in ~ [8:10:50] 
-		$ sudo /etc/init.d/mysql.server status
-		 SUCCESS! MySQL running (2095)
-		
-		# victor @ localhost in ~ [8:10:53] 
-		$ sudo /etc/init.d/mysql.server stop  
-		Shutting down MySQL.. SUCCESS! 
-		
-		# victor @ localhost in ~ [8:11:00] 
-		$ 
-
-6. 添加环境变量
-
-	在`/etc/profile`文件末尾添加如下一行
-
-		export PATH=$PATH:/usr/local/mysql/bin
-	然后 `source /etc/profile`
-
-7. others
-
-	安装完成后可以看到`/usr/local/mysql`目录下的布局如下
-
-		# root @ localhost in /usr/local/mysql [8:54:53] 
-		$ pwd
-		/usr/local/mysql
-		
-		# root @ localhost in /usr/local/mysql [8:54:54] 
-		$ ls
-		bin  COPYING  data  docs  include  lib  man  mysql-files  README  share  support-files
-		
-		# root @ localhost in /usr/local/mysql [8:54:55]
-
-	其中data目录放的就是数据
-
-8. 如果想设置开机启动的话
-
-	为了方便，重命名一下先：
-
-		# root @ localhost in /etc/init.d [9:01:28] 
-		$ mv /etc/init.d/mysql.server mysqld
-
-	然后：		
-
-		# root @ localhost in /etc/init.d [9:01:10] C:1
-		$ chkconfig --add mysqld          
-		
-		# root @ localhost in /etc/init.d [9:01:18] 
-		$ chkconfig --list      
-		
-		Note: This output shows SysV services only and does not include native
-		      systemd services. SysV configuration data might be overridden by native
-		      systemd configuration.
-		
-		      If you want to list systemd services use 'systemctl list-unit-files'.
-		      To see services enabled on particular target use
-		      'systemctl list-dependencies [target]'.
-		
-		mysqld         	0:off	1:off	2:on	3:on	4:on	5:on	6:off
-		netconsole     	0:off	1:off	2:off	3:off	4:off	5:off	6:off
-		network        	0:off	1:off	2:on	3:on	4:on	5:on	6:off
-		vmware-tools   	0:off	1:off	2:on	3:on	4:on	5:on	6:off
-		vmware-tools-thinprint	0:off	1:off	2:on	3:on	4:on	5:on	6:off
-
-	可以看到mysqld在3、4、5运行级别下都是on，说明设置成功。
-
-## 事务 ##
-## 日志 ##
-## 基本概念 ##
-### 分库分表 ###
+# mysql 分库分表 #
+## 分库分表 ##
 关系型数据库本身比较容易成为系统瓶颈，单机存储容量、连接数、处理能力都有限。当单表的数据量达到1000W或100G以后，由于查询维度较多，即使添加从库、优化索引，做很多操作时性能仍下降严重。此时就要考虑对其进行切分了，切分的目的就在于减少数据库的负担，缩短查询时间。
 
 数据切分根据其切分类型，可以分为两种方式：垂直（纵向）切分和水平（横向）切分。
 
-#### 垂直切分 ####
+### 垂直切分 ###
 
 垂直切分常见有**垂直分库**和**垂直分表**两种。
 
@@ -147,7 +26,7 @@
 	2. 分布式事务处理复杂
 	3. 依然存在单表数据量过大的问题（需要水平切分）
 
-#### 水平切分 ####
+### 水平切分 ###
 
 当一个应用难以再细粒度的垂直切分，或切分后数据量行数巨大，存在单库读写、存储性能瓶颈，这时候就需要进行水平切分了。
 
@@ -166,7 +45,7 @@
 
 数据的垂直切分基本上能够简单的理解为依照表、模块来切分数据，而水平切分就不再是依照表或者是功能模块来切分了。一般来说，简单的水平切分主要是将某个访问极其频繁的表再依照某个字段的某种规则来分散到多个表之中。每一个表中包括一部分数据。
 
-#### 分库分表带来的问题 ####
+### 分库分表带来的问题 ###
 
 分库分表能有效地缓解单机和单库带来的性能瓶颈和压力，突破网络IO、硬件资源、连接数的瓶颈，同时也带来了一些问题。
 

@@ -157,3 +157,6 @@
 - `groupadd mysql`
 
 	创建mysql组。
+## userdel ##
+
+userdel删除一个用户账号和相关的文件。

@@ -70,3 +70,9 @@
 		Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
 		
 		mysql> 
+
+## 系统管理类 ##
+
+1. 查看占用实际空间大小
+
+    	SELECT  table_schema AS "Database", ROUND(SUM(data_length + index_length + data_free) / 1024 / 1024, 2)  AS "Size (MB)"  FROM  information_schema.TABLES  GROUP BY  table_schema;

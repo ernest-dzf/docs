@@ -10,86 +10,88 @@
 
 - 17：10：04
 
-	表示当前时间
+  表示当前时间
 
 - up 255 days, 6:24
 
-	系统运行时间，表示运行了255天6小时24分
+  系统运行时间，表示运行了255天6小时24分
 
 - 13 users
 
-	当前登录用户数
+  当前登录用户数
 
 - load average:0.06,0.08.0.14
 
-	系统负载
+  系统负载
 
 - Tasks: 206 total
 
-	进程总数
+  进程总数
 
 - 1 running
 
-	正在运行的进程数目
+  正在运行的进程数目
 
 - 205 sleeping
 
-	睡眠的进程数（A sleeping process may be waiting on something -- input/output, a child process to return, etc.）。
+  睡眠的进程数（A sleeping process may be waiting on something -- input/output, a child process to return, etc.）。
 
-	关于sleeping process，引用一段话解释：
+  关于sleeping process，引用一段话解释：
 
-	
-	> Suppose a process starts: it gets loaded into memory, so some memory has to be allocated to it. It also gets some processor time, otherwise it would lurk just there, unable to run. Now it starts and probably it will need some additional memory to hold runtime data, it might need other OS resources, like files to be opened, network connections to be established, etc., etc..
-	
-	> All these requests involve the OS, which may or may not be able to fulfill these immediately. If it is, the process gets what it requests, but if not it will be put to sleep until the OS can provide. That it is put to sleep does not mean it has nothing to do or that it could be stopped. This is just a way for the OS to do something else until it can provide everything necessary to run the process.
-	
-	> Another possiblity is that the process waits for a certain event: suppose the process services a certain network event: it will listen to the network and until a certain signal comes it has nothing to do - therefore it is going to sleep. When the signal comes, it wakes up, does whatever it is supposed to do, then goes back to sleep again. If you stop the process because it sleeps it will not be able to wake up once the signal comes.
+
+  > Suppose a process starts: it gets loaded into memory, so some memory has to be allocated to it. It also gets some processor time, otherwise it would lurk just there, unable to run. Now it starts and probably it will need some additional memory to hold runtime data, it might need other OS resources, like files to be opened, network connections to be established, etc., etc..
+
+
+  > All these requests involve the OS, which may or may not be able to fulfill these immediately. If it is, the process gets what it requests, but if not it will be put to sleep until the OS can provide. That it is put to sleep does not mean it has nothing to do or that it could be stopped. This is just a way for the OS to do something else until it can provide everything necessary to run the process.
+
+
+  > Another possiblity is that the process waits for a certain event: suppose the process services a certain network event: it will listen to the network and until a certain signal comes it has nothing to do - therefore it is going to sleep. When the signal comes, it wakes up, does whatever it is supposed to do, then goes back to sleep again. If you stop the process because it sleeps it will not be able to wake up once the signal comes.
 
 - 0 stopped
 
-	停止的进程数
+  停止的进程数
 
 - 0 zombie
 
-	僵尸进程数
+  僵尸进程数
 
 - Cpu(s):0.6%us,...,0.0%st
-	
-	关于us，sy，……，参见后面的解释
+
+  关于us，sy，……，参见后面的解释
 
 - Mem: 8046144k total,...,369348k buffers
-	1. 8046144k total
+  1. 8046144k total
 
-		物理内存的总量
+     物理内存的总量
 
-	2. 4442124k used
+  2. 4442124k used
 
-		使用的物理内存总量
+     使用的物理内存总量
 
-	3. 3604020k free
+  3. 3604020k free
 
-		空闲内存总量
+     空闲内存总量
 
-	4. 369348k buffers
+  4. 369348k buffers
 
-		用作内核缓存的内存量
+     用作内核缓存的内存量
 
 - Swap: 2097148k,...,2438076k cached
-	1. 2097148k total
-		
-		交换区总量
+  1. 2097148k total
 
-	2. 194804k used
+     交换区总量
 
-		使用的交换区总量
+  2. 194804k used
 
-	3. 1902344k free
+     使用的交换区总量
 
-		空闲交换区总量
+  3. 1902344k free
 
-	4. 2438076k cached
+     空闲交换区总量
 
-		缓冲的交换区总量
+  4. 2438076k cached
+
+     缓冲的交换区总量
 
 top 命令后，按键盘`1`，可以得到各个cpu的使用情况，如下：
 
@@ -106,57 +108,57 @@ top 命令后，按键盘`1`，可以得到各个cpu的使用情况，如下：
 	30521 root      20   0 45768  23m 5480 S  1.7  0.3   1069:46 sap1009                                                                             
 	25502 root      20   0  791m  40m  10m S  1.3  0.5   1:43.72 node                                                                                
 	19486 root      20   0  888m  68m  12m S  1.0  0.9  31:04.22 squirrel-worker                                                                     
-	30506 root      20   0  7180 6132  668 S  1.0  0.1   2284:18 sap1002             k
+	30506 root      20   0  7180 6132  668 S  1.0  0.1   2284:18 sap1002
 
 这里涉及到`us`,`sy`,`ni`,`id`,`wa`,`hi`,`si`和`st`这些指标，分别是什么含义呢？
 
 引用一下top命令的man-pages的介绍。
 
 > us, user: time running un-niced user processes
-> 
+>
 > sy, system: time running kernel processes
-> 
+>
 > ni, nice: time running niced user processes
-> 
+>
 > id, idle: time spent in the kernel idle handler
-> 
+>
 > wa, IO-wait: time waiting for I/O completion
-> 
+>
 > hi: time spent servicing hardware interrupts
-> 
+>
 > si: time spent servicing software interrupts
-> 
+>
 > st: time stolen from this vm by the hypervisor
 
 中文解释就是：
 
 - us
 
-	用户空间占用CPU百分比（仅包括未改变优先级的）
+  用户空间占用CPU百分比（仅包括未改变优先级的）
 - sy
-	
-	内核空间占用CPU百分比
+
+  内核空间占用CPU百分比
 - ni
 
-	用户进程空间内改变过优先级的进程占用CPU百分比
+  用户进程空间内改变过优先级的进程占用CPU百分比
 - id
 
-	空闲CPU百分比
+  空闲CPU百分比
 - wa
 
-	IO等待所占用的CPU时间的百分比
+  IO等待所占用的CPU时间的百分比
 - hi
 
-	CPU服务于硬中断所耗费的时间总额
+  CPU服务于硬中断所耗费的时间总额
 - si
 
-	CPU服务于软中断所耗费的时间总额
+  CPU服务于软中断所耗费的时间总额
 
 - st
 
-	hypervisor（一种运行在物理服务器和操作系统之间的中间软件层，可允许多个操作系统和应用共享一套基础物理硬件）从当前虚拟机偷走的cpu时间。这个指标是针对虚拟机的。
+  hypervisor（一种运行在物理服务器和操作系统之间的中间软件层，可允许多个操作系统和应用共享一套基础物理硬件）从当前虚拟机偷走的cpu时间。这个指标是针对虚拟机的。
 
-	Steal 值比较高的话，你需要向主机供应商申请扩容虚拟机。服务器上的另一个虚拟机可能拥有更大更多的 CPU 时间片，你可能需要申请升级以与之竞争。另外，高 steal 值可能意味着主机供应商在服务器上过量地出售虚拟机。如果升级了虚拟机， steal 值还是不降的话，你应该寻找另一家服务供应商。
+  Steal 值比较高的话，你需要向主机供应商申请扩容虚拟机。服务器上的另一个虚拟机可能拥有更大更多的 CPU 时间片，你可能需要申请升级以与之竞争。另外，高 steal 值可能意味着主机供应商在服务器上过量地出售虚拟机。如果升级了虚拟机， steal 值还是不降的话，你应该寻找另一家服务供应商。
 
 
 ## free 命令 ##
@@ -173,43 +175,43 @@ free 命令用于查看当前系统的内存使用情况。
 对于上面的例子，解释如下：
 
 - Mem_total
-	
-	内存总数，7857
+
+  内存总数，7857
 
 - Mem_used
 
-	已经使用的内存数（包含buffers 与cache），4654
+  已经使用的内存数（包含buffers 与cache），4654
 
 - Mem_free
 
-	空闲的内存数，3203
+  空闲的内存数，3203
 
 - Mem_shared
 
-	共享内存，一般系统不会用到，这里也不讨论
+  共享内存，一般系统不会用到，这里也不讨论
 
 - Mem_buffers
 - Mem_cached
 - -buffers/cache
 
-	1606，等于Mem_used-Mem_buffers-Mem_cached。这里可能有出入，算了一下，Mem_used-Mem_buffers-Mem_cached=4654-382-2665=1607,而Mem_used为1606。
+  1606，等于Mem_used-Mem_buffers-Mem_cached。这里可能有出入，算了一下，Mem_used-Mem_buffers-Mem_cached=4654-382-2665=1607,而Mem_used为1606。
 
-	反映的是被程序实实在在吃掉的内存。
+  反映的是被程序实实在在吃掉的内存。
 
 - +buffers/cache
 
-	6251，等于Mem_free+Mem_buffers+Mem_cached。这里也有出入，算了一下，Mem_free+Mem_buffers+Mem_cached=3203+382+2665=6250,而从上面`free -m`命令执行的结果来看，`+buffers/cache`为6251。
+  6251，等于Mem_free+Mem_buffers+Mem_cached。这里也有出入，算了一下，Mem_free+Mem_buffers+Mem_cached=3203+382+2665=6250,而从上面`free -m`命令执行的结果来看，`+buffers/cache`为6251。
 
-	反映的是可以挪用的内存总数
+  反映的是可以挪用的内存总数
 
 - Swap_total
 - Swap_used
 - Swap_free
 
 ### buffer和cache的区别 ###
-> 
+>
 > A buffer is something that has yet to be "written" to disk. A cache is something that has been "read" from the disk and stored for later use.
- 
+
 两者都是RAM中的数据。简单来说，buffer是即将要被写入磁盘的，cache是被从磁盘中读出来的。
 
 buffer是由各种进程分配的，被用在如输入队列等方面，一个简单的例子如某个进程要求有多个字段读入，在所有字段被读入完整之前，进程把先前读入的字段放在buffer中保存。

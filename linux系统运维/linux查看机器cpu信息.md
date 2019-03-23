@@ -27,7 +27,7 @@
 		24
 		[user_00@TENCENT64 ~]$ 
 
-	以上面1、2、3、4例子来看，这个机器有2个物理CPU，每个CPU有6个物理核，每个CPU开启了超线程，有12个逻辑核。该机器总共有24和逻辑核，对应的是`cat /proc/cpuinfo`输出信息中的`processor0`,`processor1`,`processor2`,……。
+	以上面1、2、3、4例子来看，这个机器有2个物理CPU，每个CPU有6个物理核，每个CPU开启了超线程，有12个逻辑核。该机器总共有24个逻辑核，对应的是`cat /proc/cpuinfo`输出信息中的`processor0`,`processor1`,`processor2`,……。
 		
 # 跑cpu占用率 #
 	

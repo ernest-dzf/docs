@@ -123,7 +123,7 @@
 
 当初始状态时，local1和local2和任何一个分支都没有关联，也就是没有upstream。
 
-通过`git branch --set-upstream-to A/branch1 local1`命令执行后，会给local1和branch1两个分支建立关联，也就是说local1的upstream指向的是branch1。
+通过`git branch --set-upstream-to=A/branch1 local1`命令执行后，会给local1和branch1两个分支建立关联，也就是说local1的upstream指向的是branch1。
 
 这样的好处就是在local1分支上执行git push（git pull同理）操作时不用附加其它参数，Git就会自动将local1分支上的内容push到branch1上去。
 
@@ -139,3 +139,8 @@ upstream与有几个远程库没有关系，它是分支与分支之间的流通
 
 1. git push -u origin mybranch1
 2. git branch --set-upstream-to=origin/mybranch1 mybranch1
+
+这两种方式都可以达到目的。但是方法1更通用，因为你的远程库有可能并没有mybranch1分支，这种情况下你用方法2就不可行，连目标分支都不存在，怎么进行关联呢？
+
+所以可以总结一下：`git push -u origin mybranch1` 相当于  `git push origin mybranch1` + `git branch --set-upstream-to=origin/mybranch1 mybranch1`
+

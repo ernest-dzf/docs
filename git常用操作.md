@@ -148,6 +148,33 @@ upstream与有几个远程库没有关系，它是分支与分支之间的流通
 
 放到暂存区
 
+	# victor @ VICTORDONG-MB0 in ~/github/notes on git:master x [2:06:09] 
+	$ # victor @ VICTORDONG-MB0 in ~/github/notes on git:master x [2:05:31] 
+	$ git status
+	On branch master
+	Your branch is up to date with 'origin/master'.
+	
+	Changes not staged for commit:
+	  (use "git add <file>..." to update what will be committed)
+	  (use "git checkout -- <file>..." to discard changes in working directory)
+	
+	        modified:   git常用操作.md
+	
+	no changes added to commit (use "git add" and/or "git commit -a")
+	
+	# victor @ VICTORDONG-MB0 in ~/github/notes on git:master x [2:05:34]
+	$ git add git常用操作.md
+	
+## git commit ##
+提交
+
+	# victor @ VICTORDONG-MB0 in ~/github/notes on git:master x [2:08:18] 
+	$ git commit -m 'description'
+	
+## git checkout ##
+
+modified的文件，使用`git checkout -- <file>`命令可以将更改丢弃。
+
 ## 解决冲突 ##
 
 git 冲突文件是类似 xxx.orig 这种的文件，以orig为后缀。

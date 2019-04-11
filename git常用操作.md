@@ -144,3 +144,22 @@ upstream与有几个远程库没有关系，它是分支与分支之间的流通
 
 所以可以总结一下：`git push -u origin mybranch1` 相当于  `git push origin mybranch1` + `git branch --set-upstream-to=origin/mybranch1 mybranch1`
 
+## git add ##
+
+放到暂存区
+
+## 解决冲突 ##
+
+git 冲突文件是类似 xxx.orig 这种的文件，以orig为后缀。
+
+	<<<<<<< HEAD
+	b789
+	=======
+	b45678910
+	>>>>>>> 6853e5ff961e684d3a6c02d4d06183b5ff330dcc
+
+上面的例子中，`<<<<<<< HEAD`到`=======`之间的`b789`是本地的文件，`=======`到`>>>>>>> 6853e5ff961e684d3a6c02d4d06183b5ff330dcc`之间的`b45678910`是拉下来的文件。
+
+手动解决一下冲突，然后保存就可以。
+
+xxx.orig文件是冲突现场，解决完冲突后，可以选择将其删除掉。

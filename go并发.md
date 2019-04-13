@@ -263,4 +263,73 @@ Context接口并不需要我们实现，Go内置已经帮我们实现了2个，�
 	func WithValue(parent Context, key, val interface{}) Context
 
 
+这四个With函数，接收的都有一个parent参数，就是父Context，我们要基于这个父Context创建出子Context的意思，这种方式可以理解为子Context对父Context的继承，也可以理解为基于父Context的衍生。
+
+通过这些函数，就创建了一颗Context树，树的每个节点都可以有任意多个子节点，节点层级可以有任意多个。
+
+- `WithCancel`函数，传递一个父Context作为参数，返回子Context，以及一个取消函数用来取消Context。
+- `WithDeadline`函数，和WithCancel差不多，它会多传递一个截止时间参数，意味着到了这个时间点，会自动取消Context，当然我们也可以不等到这个时候，可以提前通过取消函数进行取消。
+- `WithTimeout`函数，和WithDeadline基本上一样，这个表示是超时自动取消，是多少时间后自动取消Context的意思。
+- `WithValue`函数，和取消Context无关，它是为了生成一个绑定了一个键值对数据的Context，这个绑定的数据可以通过Context.Value方法访问到，后面我们会专门讲。
+
+
+大家可能留意到，前三个函数都返回一个取消函数CancelFunc，这是一个函数类型，它的定义非常简单。
+
+	type CancelFunc func()
+
+这就是取消函数的类型，该函数可以取消一个Context，以及这个节点Context下所有的所有的Context，不管有多少层级。
+
+## WithValue传递元数据 ##
+
+通过Context我们也可以传递一些必须的元数据，这些数据会附加在Context上以供使用。
+
+	var key string="name"
+	
+	func main() {
+		ctx, cancel := context.WithCancel(context.Background())
+		//附加值
+		valueCtx:=context.WithValue(ctx,key,"【监控1】")
+		go watch(valueCtx)
+		time.Sleep(10 * time.Second)
+		fmt.Println("可以了，通知监控停止")
+		cancel()
+		//为了检测监控过是否停止，如果没有监控输出，就表示停止了
+		time.Sleep(5 * time.Second)
+	}
+	
+	func watch(ctx context.Context) {
+		for {
+			select {
+			case <-ctx.Done():
+				//取出值
+				fmt.Println(ctx.Value(key),"监控退出，停止了...")
+				return
+			default:
+				//取出值
+				fmt.Println(ctx.Value(key),"goroutine监控中...")
+				time.Sleep(2 * time.Second)
+			}
+		}
+	}
+
+在前面的例子，我们通过传递参数的方式，把name的值传递给监控函数。在这个例子里，我们实现一样的效果，但是通过的是Context的Value的方式。
+
+我们可以使用context.WithValue方法附加一对K-V的键值对，这里Key必须是**等价性**的，也就是具有可比性；Value值要是**线程安全**的。
+
+这样我们就生成了一个新的Context，这个新的Context带有这个键值对，在使用的时候，可以通过Value方法读取ctx.Value(key)。
+
+Context 使用原则：
+
+1. 不要把Context放在结构体中，要以参数的方式传递
+
+2. 以Context作为参数的函数方法，应该把Context作为第一个参数，放在第一位。
+
+3. 给一个函数方法传递Context的时候，不要传递nil，如果不知道传递什么，就使用context.TODO
+
+4. Context的Value相关方法应该传递必须的数据，不要什么数据都使用这个传递
+
+5. Context是线程安全的，可以放心的在多个goroutine中传递
+
+
+
 参考文章：[这里](https://www.flysnow.org/2017/05/12/go-in-action-go-context.html)

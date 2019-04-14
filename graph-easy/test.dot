@@ -1,0 +1,29 @@
+(bucket 0:
+[tophash\[0\]		||
+tophash\[1\]		|| 
+...			||
+ tophash\[7\]		||
+ key1			||
+ key2			||
+ ...			||
+ key8			||
+ value1			||
+ value2			||
+ ...			||
+ value8			||
+ pointer to next bucket 
+])-->(bucket 1:
+[tophash\[0\]		||
+tophash\[1\]		|| 
+...			||
+ tophash\[7\]		||
+ key1			||
+ key2			||
+ ...			||
+ key8			||
+ value1			||
+ value2			||
+ ...			||
+ value8			||
+ pointer to next bucket 
+])

@@ -1,0 +1,1 @@
+[key]->{label:"hash function:f()"}[hash value]->[high 8 bits\|low 2^B bits]

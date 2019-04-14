@@ -119,4 +119,6 @@ Golang的map的加载因子的公式是：map长度 / 2^B, 阈值是6.5
 
 
 ## 参考 ##
+源码：runtime/hashmap.go
+
 参考：[这里](https://blog.csdn.net/i6448038/article/details/82057424)

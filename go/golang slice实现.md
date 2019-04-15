@@ -29,3 +29,5 @@ slice实际就是一个struct，在runtime/slice.go中定义。
 slice使用下标不能超过len，向后扩展不能超过cap。
 
 多个不同slice之间可以共享底层的数据，起始地址、长度都可以不同，所以slice第一个元素未必是数组的第一个元素。
+
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/slice.png)

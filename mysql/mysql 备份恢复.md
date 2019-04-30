@@ -120,6 +120,8 @@
 	
 	session-2会被卡住。	
 
+	执行`LOCK TABLES student WRITE`的会话也不能对其他表进行任何操作。
+
 2. UNLOCK TABLES;
 
 	LOCK TABLES为当前会话锁定表。 UNLOCK TABLES释放被当前会话持有的任何锁。
@@ -137,3 +139,20 @@
 		ERROR 1099 (HY000): Table 'student' was locked with a READ lock and can't be updated
 		mysql> 
 		
+	执行 `LOCK TABLES student READ` 的当前session也不能对其他表进行操作。
+
+		mysql> lock tables student read;
+		Query OK, 0 rows affected (0.00 sec)
+		
+		mysql> show tables;
+		+------------------+
+		| Tables_in_victor |
+		+------------------+
+		| class            |
+		| student          |
+		+------------------+
+		2 rows in set (0.00 sec)
+		
+		mysql> select * from class;
+		ERROR 1100 (HY000): Table 'class' was not locked with LOCK TABLES
+		mysql> 

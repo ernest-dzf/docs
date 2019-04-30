@@ -190,3 +190,44 @@ git 冲突文件是类似 xxx.orig 这种的文件，以orig为后缀。
 手动解决一下冲突，然后保存就可以。
 
 xxx.orig文件是冲突现场，解决完冲突后，可以选择将其删除掉。
+
+## git show ##
+
+查看某次commit做了哪些更改，使用`git show xxxx`命令，其中`xxxx`表示commit id。
+
+	$ git show b75bf88a841c070526203a62c415b56d1e30b61f
+	commit b75bf88a841c070526203a62c415b56d1e30b61f (HEAD -> tdsql-refactor-develop, origin/tdsql-refactor-develop)
+	Author: victordong <victordong@tencent.com>
+	Date:   Mon Apr 15 18:05:07 2019 +0800
+	
+	    fix uniqSubnetId&uniqVpcId parameter
+	
+	diff --git a/src/comcomponent/vpc.go b/src/comcomponent/vpc.go
+	index 167f544..5ee5a63 100644
+	--- a/src/comcomponent/vpc.go
+	+++ b/src/comcomponent/vpc.go
+	@@ -81,8 +81,8 @@ func NewVpc(region string, requestId string) *Vpc {
+	 }
+	
+	 type VpcApplyIpRequest struct {
+	-       UniqVpcId       string  `json:"uniqvpcId,omitempty"`
+	-       UniqSubnetId    string  `json:"uniqVpcId,omitempty"`
+	+       UniqVpcId       string  `json:"uniqVpcId,omitempty"`
+	+       UniqSubnetId    string  `json:"uniqSubnetId,omitempty"`
+	
+	        VpcId    int64  `json:"vpcId"`
+	        SubnetId int64  `json:"subnetId"`
+	@@ -381,8 +381,8 @@ type GetSubnetIpNumResponse struct {
+	        Detail []SubnetIpNum `json:"detail"`
+	 }
+	 type SubnetIpNum struct {
+	-       UniqVpcId    string `json:"uniqvpcId,omitempty"`
+	-       UniqSubnetId string `json:"uniqVpcId,omitempty"`
+	+       UniqVpcId    string `json:"uniqVpcId,omitempty"`
+	+       UniqSubnetId string `json:"uniqSubnetId,omitempty"`
+	        VpcId        int    `json:"vpcId"`
+	        SubnetId     int    `json:"subnetId"`
+	        Used         int    `json:"used"`
+	
+	victordong@victordong-pc0 MINGW64 /d/code/liaoning_tdsql_shark/deps/common (tdsql-refactor-develop)
+	$

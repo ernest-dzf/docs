@@ -1,5 +1,39 @@
 # mysql安装 #
 这里以centos为例。
+
+## percona 5.7 安装 ##
+
+1. 官网下载，地址：[https://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.25-28/binary/tarball/Percona-Server-5.7.25-28-Linux.x86_64.ssl101.tar.gz](https://www.percona.com/downloads/Percona-Server-5.7/LATEST/binary/tarball/)。
+	
+	这里注意下载版本，官方说法是：
+> 	Percona Server offers multiple tarballs depending on the OpenSSL library available in the distribution:
+ 
+	> ssl100 - for Debian prior to 9 and Ubuntu prior to 14.04 versions (libssl.so.1.0.0 => /usr/lib/x86_64-linux-gnu/libssl.so.1.0.0 (0x00007f2e389a5000));
+	
+	> ssl101 - for CentOS 6 and CentOS 7 (libssl.so.10 => /usr/lib64/libssl.so.10 (0x00007facbe8c4000));
+	
+	> ssl102 - for Debian 9 and Ubuntu versions starting from 14.04 (libssl.so.1.1 => /usr/lib/libssl.so.1.1 (0x00007f5e57397000);
+	
+	我的机器是centos 7，所以下载**ssl101**版本。
+
+2. 得到`Percona-Server-5.7.25-28-Linux.x86_64.ssl101.tar.gz`tar包，解压到`/usr/local`目录下面去
+
+		[root@VM_0_15_centos mysql]# tar -zxvf Percona-Server-5.7.25-28-Linux.x86_64.ssl101.tar.gz -C /usr/local/
+		[root@VM_0_15_centos local]# ls
+		bin    include  libexec                                       sbin   yd.socket.server
+		etc    lib      Percona-Server-5.7.25-28-Linux.x86_64.ssl101  share
+		games  lib64    qcloud                                        src
+		[root@VM_0_15_centos local]# 
+3. 创建一个软链接到`Percona-Server-5.7.25-28-Linux.x86_64.ssl101`这个目录
+
+		[root@VM_0_15_centos local]# ls
+		bin  games    lib    libexec  Percona-Server-5.7.25-28-Linux.x86_64.ssl101  sbin   src
+		etc  include  lib64  mysql    qcloud                                        share  yd.socket.server
+		[root@VM_0_15_centos local]# ls -l mysql
+		lrwxrwxrwx 1 root root 44 4月  20 11:42 mysql -> Percona-Server-5.7.25-28-Linux.x86_64.ssl101
+		[root@VM_0_15_centos local]# 
+
+
 ## mysql 5.7安装 ##
 1. 官网下载linux generic binary包，地址：https://dev.mysql.com/downloads/mysql/
 2. 下载得到的是一个xxx.tar.gz的包，比如`mysql-5.7.23-linux-glibc2.12-x86_64.tar.gz`，解压得到`/usr/local/`目录下面去，比如

@@ -333,3 +333,232 @@ nginx可以配置虚拟主机，就是在`nginx.conf`配置文件中写配置。
 	$ 
 	
 可以看到，我们通过指定http请求的header中的Host，可以访问到不同的主机。
+
+通过抓包我们也可以看到，上面例子中两个请求其实就是http报文中请求头部的Host不一样。
+
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/nginx_vm1.png)
+
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/nginx_vm2.png)
+
+
+### 默认虚拟主机
+
+可以设置一个默认虚拟主机。这样当访问的虚拟主机不存在时，就默认访问`默认虚拟主机`。
+
+
+	[root@VM_0_15_centos vhost]# ls
+	default.conf  victor.conf  wind.conf
+	[root@VM_0_15_centos vhost]# cat default.conf 
+	server {
+	        listen 80 default_server;
+	        root /data/wwwroot/www.default.com;
+	}
+	[root@VM_0_15_centos vhost]# 
+	
+从上面可以看出，默认虚拟主机就是在`listen 80`后面添加一个`default_server`。
+	
+比如下面，主机`www.victor.comm`不存在，就访问到了默认虚拟主机。
+
+
+	# victor @ VICTORDONG-MB0 in ~ [23:45:10] 
+	$ curl -H "Host:www.victor.comm" 150.109.76.79
+	default virtual machine
+	
+	# victor @ VICTORDONG-MB0 in ~ [23:45:14] 
+	$ 
+
+当然我们也可以针对默认虚拟主机进行拒绝访问。
+
+默认虚拟主机配置如下：
+
+	[root@VM_0_15_centos vhost]# cat default.conf 
+	server {
+	        listen 80 default_server;
+	        root /data/wwwroot/www.default.com;
+	        deny all;
+	}
+	[root@VM_0_15_centos vhost]# 
+
+可以看到加了一行`deny all`。
+
+我们测试下：
+
+	# victor @ VICTORDONG-MB0 in ~ [23:45:14] 
+	$ curl -H "Host:www.victor.comm" 150.109.76.79
+	<html>
+	<head><title>403 Forbidden</title></head>
+	<body>
+	<center><h1>403 Forbidden</h1></center>
+	<hr><center>nginx/1.16.0</center>
+	</body>
+	</html>
+	
+	# victor @ VICTORDONG-MB0 in ~ [23:52:32] 
+	$ 
+
+直接返回403，符合预期。
+
+
+### 虚拟主机index.html
+
+如果我们不指定虚拟主机的index是哪个，那么nginx默认会去root 目录找名称为`index.html`的文件。
+
+比如：
+
+	[root@VM_0_15_centos vhost]# ls
+	default.conf  victor.conf  wind.conf
+	[root@VM_0_15_centos vhost]# cat victor.conf 
+	server {
+	        listen 80;
+	        server_name www.victor.com;
+	        root /data/wwwroot/www.victor.com;
+	}
+	[root@VM_0_15_centos vhost]# cd /data/wwwroot/www.victor.com/
+	[root@VM_0_15_centos www.victor.com]# ls
+	index.html
+	[root@VM_0_15_centos www.victor.com]# mv index.html index1.html
+	[root@VM_0_15_centos www.victor.com]# ls
+	index1.html
+	[root@VM_0_15_centos www.victor.com]# 
+
+
+虚拟主机`www.victor.com`没有指定index是哪个，root目录下面也没有名称为`index.html`的文件。那么我们访问虚拟主机`www.victor.com`会是啥结果呢？
+
+	# victor @ VICTORDONG-MB0 in ~ [23:58:08] 
+	$ curl -H "Host:www.victor.com" 150.109.76.79                                                                
+	<html>
+	<head><title>403 Forbidden</title></head>
+	<body>
+	<center><h1>403 Forbidden</h1></center>
+	<hr><center>nginx/1.16.0</center>
+	</body>
+	</html>
+	
+	# victor @ VICTORDONG-MB0 in ~ [23:58:27] 
+	$ 
+
+可以看到是拒绝访问。
+
+这时候，我们创建一个`index.html`文件。
+
+	[root@VM_0_15_centos www.victor.com]# mv index1.html index.html
+	[root@VM_0_15_centos www.victor.com]# ls
+	index.html
+	[root@VM_0_15_centos www.victor.com]# 
+	
+然后再访问虚拟主机`www.victor.com`。
+
+可以看到正常访问。
+
+	# victor @ VICTORDONG-MB0 in ~ [0:00:10] 
+	$ curl -H "Host:www.victor.com" 150.109.76.79
+	This is www.victor.com!
+	
+	# victor @ VICTORDONG-MB0 in ~ [0:00:11] 
+	$ 
+
+当然我们也可以指定`index`是哪个。
+
+	[root@VM_0_15_centos www.victor.com]# cat /usr/local/nginx/conf/vhost/victor.conf                            
+	server {
+	        listen 80;
+	        server_name www.victor.com;
+	        index index1.html
+	        access_log  logs/victor.access.log;
+	        root /data/wwwroot/www.victor.com;
+	}
+	[root@VM_0_15_centos www.victor.com]# 
+	
+这里指定`index`为`index1.html`。
+
+然后试下访问结果：
+
+	# victor @ VICTORDONG-MB0 in ~ [0:35:11] 
+	$ curl -H "Host:www.victor.com" 150.109.76.79
+	This is www.victor.com!
+	
+	# victor @ VICTORDONG-MB0 in ~ [0:36:04] 
+	$ 
+
+可以看到正常访问到`index1.html`。
+
+### 虚拟主机泛解析
+
+有时候我们需要这样访问，`1.victor.com`，`2.victor.com`，希望访问这两个虚拟主机访问到同一个页面，可以这样做。
+
+
+	[root@VM_0_15_centos vhost]# cat victor.conf 
+	server {
+	        listen 80;
+	        server_name www.victor.com victor.com *.victor.com;
+	        index index1.html
+	        access_log  logs/victor.access.log;
+	        root /data/wwwroot/www.victor.com;
+	}
+	[root@VM_0_15_centos vhost]# 
+	
+通过在`server_name`处写上通配符`*.victor.com`就可以达到这样的目的。
+
+验证结果如下：
+
+	# victor @ VICTORDONG-MB0 in ~ [0:43:58] 
+	$ curl -H "Host:1.victor.com" 150.109.76.79
+	This is www.victor.com!
+	
+	# victor @ VICTORDONG-MB0 in ~ [0:44:03] 
+	$ curl -H "Host:2.victor.com" 150.109.76.79
+	This is www.victor.com!
+	
+	# victor @ VICTORDONG-MB0 in ~ [0:44:07] 
+	$ curl -H "Host:www.victor.com" 150.109.76.79
+	This is www.victor.com!
+	
+	# victor @ VICTORDONG-MB0 in ~ [0:44:12] 
+	$ curl -H "Host:victor.com" 150.109.76.79 
+	This is www.victor.com!
+	
+	# victor @ VICTORDONG-MB0 in ~ [0:44:16] 
+	$ 
+
+### 通过端口区分虚拟主机
+
+上面我们谈到的都是通过`Host`来区分虚拟主机，还可以通过端口来区分虚拟主机。
+
+比如下面这样：
+
+	[root@VM_0_15_centos vhost]# cat victor_8080.conf 
+	server {
+	        listen 8080;
+	        server_name www.victor.com;
+	        index index.html
+	        access_log  logs/victor.access.log;
+	        root /data/wwwroot/www.victor.com_8080;
+	}
+	[root@VM_0_15_centos vhost]# 
+	[root@VM_0_15_centos vhost]# cat /data/wwwroot/www.victor.com_8080/index.html 
+	www.victor.com:8080
+	[root@VM_0_15_centos vhost]# 
+	
+我们配置了`www.victor.com`的8080端口。
+
+我们验证下：
+
+
+	# victor @ VICTORDONG-MB0 in ~ [0:44:51] 
+	$ curl -H "Host:victor.com" 150.109.76.79:8080
+	www.victor.com:8080
+	
+	# victor @ VICTORDONG-MB0 in ~ [0:58:53] 
+	$ curl -H "Host:victor.com" 150.109.76.79     
+	This is www.victor.com!
+	
+	# victor @ VICTORDONG-MB0 in ~ [0:58:58] 
+	$ 
+
+可以看到，两者一个访问的是`/data/wwwroot/www.victor.com/index.html`，一个访问的是`/data/wwwroot/www.victor.com_8080/index.html`。
+
+**应用场景**
+
+有一种应用场景是，我们只有2台机器 A 和 B。希望通过A 和 B 一起给用户提供主机访问服务。我们可以在机器A上配置反向代理，代理地址为 www.xxxx.com:80。然后将请求转发到 机器A的的虚拟主机 hostA:8080 和机器B的虚拟主机 hostB:8080 上。
+
+这样达到减少一台机器需求的目的。

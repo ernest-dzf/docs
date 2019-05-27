@@ -562,3 +562,324 @@ nginx可以配置虚拟主机，就是在`nginx.conf`配置文件中写配置。
 有一种应用场景是，我们只有2台机器 A 和 B。希望通过A 和 B 一起给用户提供主机访问服务。我们可以在机器A上配置反向代理，代理地址为 www.xxxx.com:80。然后将请求转发到 机器A的的虚拟主机 hostA:8080 和机器B的虚拟主机 hostB:8080 上。
 
 这样达到减少一台机器需求的目的。
+
+
+## rewrite
+
+nginx 的`ngx_http_rewrite_module`模块给我们提供了一些很好用的功能。
+
+- 域名跳转
+- URL重写
+- 动静分离
+
+
+先来看一个例子。
+
+虚拟主机`www.victor.com`的配置如下：
+
+	[root@VM_0_15_centos vhost]# ls
+	default.conf  victor_8080.conf  victor.conf  wind.conf
+	[root@VM_0_15_centos vhost]# cat victor.conf 
+	server {
+	        listen 80;
+	        server_name www.victor.com victor.com *.victor.com;
+	        index index.html
+	        access_log  logs/victor.access.log;
+	        root /data/wwwroot/www.victor.com;
+	        rewrite_log on;
+	        rewrite /1.html /2.html;
+	        rewrite /2.html /3.html;
+	}
+	[root@VM_0_15_centos vhost]# 
+	[root@VM_0_15_centos vhost]# cat /data/wwwroot/www.victor.com/1.html 
+	This is www.victor.com! 1.html
+	[root@VM_0_15_centos vhost]# cat /data/wwwroot/www.victor.com/2.html 
+	This is www.victor.com! 2.html
+	[root@VM_0_15_centos vhost]# cat /data/wwwroot/www.victor.com/3.html 
+	This is www.victor.com! 3.html
+	
+重点关注`rewrite /1.html /2.html;`和`rewrite /2.html /3.html;`这两处。
+
+我们验证下`rewrite`的功能。
+
+	# victor @ VICTORDONG-MB0 in ~ [1:10:01] 
+	$ curl -H "Host:victor.com" http://150.109.76.79/1.html
+	This is www.victor.com! 3.html
+	
+	# victor @ VICTORDONG-MB0 in ~ [1:10:09] 
+	$ curl -H "Host:victor.com" http://150.109.76.79/2.html
+	This is www.victor.com! 3.html
+	
+	# victor @ VICTORDONG-MB0 in ~ [1:10:13] 
+	$ curl -H "Host:victor.com" http://150.109.76.79/3.html
+	This is www.victor.com! 3.html
+	
+	# victor @ VICTORDONG-MB0 in ~ [1:10:16] 
+	$                                                      
+
+可以看到，我们请求`1.html`和`2.html`，最终都请求到了`3.html`。
+
+我们查看`error.log`也可以看到这点。
+
+	2019/05/28 01:13:53 [notice] 15868#0: *7 "/1.html" matches "/1.html", client: 125.69.41.150, server: www.victor.com, request: "GET /1.html HTTP/1.1", host: "victor.com"                                                   
+	2019/05/28 01:13:53 [notice] 15868#0: *7 rewritten data: "/2.html", args: "", client: 125.69.41.150, server: www.victor.com, request: "GET /1.html HTTP/1.1", host: "victor.com"                                           
+	2019/05/28 01:13:53 [notice] 15868#0: *7 "/2.html" matches "/2.html", client: 125.69.41.150, server: www.victor.com, request: "GET /1.html HTTP/1.1", host: "victor.com"                                                   
+	2019/05/28 01:13:53 [notice] 15868#0: *7 rewritten data: "/3.html", args: "", client: 125.69.41.150, server: www.victor.com, request: "GET /1.html HTTP/1.1", host: "victor.com"     
+
+
+这里跳转了2次。第一次跳转到`2.html`，然后`2.html`又匹配到了规则，`2.html`跳转到了`3.html`。
+
+### 只匹配一次
+
+可以通过`break`或者`last`来指定只匹配一次。比如虚拟主机`www.victor.com`的配置如下：
+
+	[root@VM_0_15_centos vhost]# cat victor.conf 
+	server {
+	        listen 80;
+	        server_name www.victor.com victor.com *.victor.com;
+	        index index.html
+	        access_log  logs/victor.access.log;
+	        root /data/wwwroot/www.victor.com;
+	        rewrite_log on;
+	        rewrite /1.html /2.html break;
+	        rewrite /2.html /3.html;
+	}
+	[root@VM_0_15_centos vhost]# 
+
+重点关注`rewrite /1.html /2.html break;`这一行。
+
+验证结果如下：
+
+	# victor @ VICTORDONG-MB0 in ~ [1:16:39] 
+	$ curl -H "Host:victor.com" http://150.109.76.79/1.html
+	This is www.victor.com! 2.html
+	
+	# victor @ VICTORDONG-MB0 in ~ [1:16:40] 
+	$ 
+	
+可以看到只跳转到了`2.html`。
+
+使用`last`的效果也是一样的。
+
+### break和last的区别
+
+前面讲到可以通过使用`break`和`last`来达到只匹配一次的效果，那么他们的区别是什么呢？
+
+`break`和`last`在`server`里面的作用是一样的。
+
+也就是下面这样配置：
+
+	server {
+		...
+		rewrite xxx xxx break;
+		rewrite xxx xxx last;
+		...
+	}
+	
+
+如果`break`和`last`是在`location`里面出现的话，他们是不一样的。
+
+举个例子，虚拟主机`www.victor.com`的配置如下：
+
+	[root@VM_0_15_centos vhost]# cat victor.conf 
+	server {
+	        listen 80;
+	        server_name www.victor.com victor.com *.victor.com;
+	        index index.html
+	        access_log  logs/victor.access.log;
+	        root /data/wwwroot/www.victor.com;
+	        rewrite_log on;
+	        location / {
+	                rewrite /1.html /2.html;
+	                rewrite /2.html /3.html;
+	        }
+	
+	        location /2.html {
+	                rewrite /2.html /b.html;
+	        }
+	        location /3.html {
+	                rewrite /3.html /b.html;
+	        }
+	}
+	[root@VM_0_15_centos vhost]# 
+	
+我们如果访问`1.html`结果会是如何呢？
+
+	# victor @ VICTORDONG-MB0 in ~ [1:18:49] 
+	$ curl -H "Host:victor.com" http://150.109.76.79/1.html                                                      
+	<html>
+	<head><title>404 Not Found</title></head>
+	<body>
+	<center><h1>404 Not Found</h1></center>
+	<hr><center>nginx/1.16.0</center>
+	</body>
+	</html>
+	
+	# victor @ VICTORDONG-MB0 in ~ [1:35:40] 
+	$ 
+
+结果是`404`。
+
+我们看下rewrite的日志。
+
+	[root@VM_0_15_centos logs]# tail error.log
+	2019/05/28 01:34:24 [notice] 20155#0: start worker process 20157
+	2019/05/28 01:34:30 [notice] 20157#0: *1 "/1.html" matches "/1.html", client: 125.69.41.150, server: www.victor.com, request: "GET /1.html HTTP/1.1", host: "victor.com"
+	2019/05/28 01:34:30 [notice] 20157#0: *1 rewritten data: "/2.html", args: "", client: 125.69.41.150, server: www.victor.com, request: "GET /1.html HTTP/1.1", host: "victor.com"
+	2019/05/28 01:34:30 [notice] 20157#0: *1 "/2.html" matches "/2.html", client: 125.69.41.150, server: www.victor.com, request: "GET /1.html HTTP/1.1", host: "victor.com"
+	2019/05/28 01:34:30 [notice] 20157#0: *1 rewritten data: "/3.html", args: "", client: 125.69.41.150, server: www.victor.com, request: "GET /1.html HTTP/1.1", host: "victor.com"
+	2019/05/28 01:34:30 [notice] 20157#0: *1 "/3.html" matches "/3.html", client: 125.69.41.150, server: www.victor.com, request: "GET /1.html HTTP/1.1", host: "victor.com"
+	2019/05/28 01:34:30 [notice] 20157#0: *1 rewritten data: "/b.html", args: "", client: 125.69.41.150, server: www.victor.com, request: "GET /1.html HTTP/1.1", host: "victor.com"
+	2019/05/28 01:34:30 [notice] 20157#0: *1 "/1.html" does not match "/b.html", client: 125.69.41.150, server: www.victor.com, request: "GET /1.html HTTP/1.1", host: "victor.com"
+	2019/05/28 01:34:30 [notice] 20157#0: *1 "/2.html" does not match "/b.html", client: 125.69.41.150, server: www.victor.com, request: "GET /1.html HTTP/1.1", host: "victor.com"
+	2019/05/28 01:34:30 [error] 20157#0: *1 open() "/data/wwwroot/www.victor.com/b.html" failed (2: No such file or directory), client: 125.69.41.150, server: www.victor.com, request: "GET /1.html HTTP/1.1", host: "victor.com"
+	[root@VM_0_15_centos logs]# 
+
+可以发现，先是匹配到了`/1.html`，然后跳转`/2.html`。然后`/2.html`继续被rewrite到了`/3.html`。这两步都是在`location / `里面完成的。
+
+`/3.html`继续被匹配。可以匹配到`/3.html`的有两个location。分别是`location /`和`location /3.html`。nginx优先匹配更为精确的，所以`/3.html`被`location /3.html`匹配到了。然后被rewrite到了`/b.html`。
+
+`/b.html`继续匹配过程。他可以被`location /`匹配到，但是里面的两个rewrite都匹配不到，所以最终就去访问`b.html`。由于`b.html`不存在，所以报错`404`。
+
+从上面的rewrite log，我们可以也可以看出来。
+
+我们也可以总结出一点：**rewrite从location里面出来之后，可以看做是一次新的请求，需要重新去匹配各个location**。
+
+
+**使用break**
+
+配置改一下，添加`break`。
+
+	[root@VM_0_15_centos vhost]# cat victor.conf 
+	server {
+	        listen 80;
+	        server_name www.victor.com victor.com *.victor.com;
+	        index index.html
+	        access_log  logs/victor.access.log;
+	        root /data/wwwroot/www.victor.com;
+	        rewrite_log on;
+	        location / {
+	                rewrite /1.html /2.html break;
+	                rewrite /2.html /3.html;
+	        }
+	
+	        location /2.html {
+	                rewrite /2.html /b.html;
+	        }
+	        location /3.html {
+	                rewrite /3.html /b.html;
+	        }
+	}
+	[root@VM_0_15_centos vhost]# 
+
+然后验证：
+
+	# victor @ VICTORDONG-MB0 in ~ [1:35:40] 
+	$ curl -H "Host:victor.com" http://150.109.76.79/1.html                                                      
+	This is www.victor.com! 2.html
+	
+	# victor @ VICTORDONG-MB0 in ~ [1:47:13] 
+	$ 
+	
+可以看到，访问的是`2.html`。
+
+查看rewrite日志，也可以发现仅仅rewrite了一次。
+
+	[root@VM_0_15_centos vhost]# tail ../../logs/error.log
+	2019/05/28 01:47:11 [notice] 20155#0: exit
+	2019/05/28 01:47:11 [notice] 21697#0: using the "epoll" event method                                         
+	2019/05/28 01:47:11 [notice] 21697#0: nginx/1.16.0
+	2019/05/28 01:47:11 [notice] 21697#0: built by gcc 4.8.5 20150623 (Red Hat 4.8.5-36) (GCC)                   
+	2019/05/28 01:47:11 [notice] 21697#0: OS: Linux 3.10.0-862.el7.x86_64                                        
+	2019/05/28 01:47:11 [notice] 21697#0: getrlimit(RLIMIT_NOFILE): 1024:4096                                    
+	2019/05/28 01:47:11 [notice] 21698#0: start worker processes                                                 
+	2019/05/28 01:47:11 [notice] 21698#0: start worker process 21700                                             
+	2019/05/28 01:47:13 [notice] 21700#0: *1 "/1.html" matches "/1.html", client: 125.69.41.150, server: www.victor.com, request: "GET /1.html HTTP/1.1", host: "victor.com"                                                   
+	2019/05/28 01:47:13 [notice] 21700#0: *1 rewritten data: "/2.html", args: "", client: 125.69.41.150, server: www.victor.com, request: "GET /1.html HTTP/1.1", host: "victor.com"                                           
+	[root@VM_0_15_centos vhost]#
+
+这就是`break`的功效。
+
+1. rewrite后面的rewrite也不执行了；
+2. 跳出当前`location`，当前location后面的location也不去匹配了。
+
+**使用last**
+
+更改虚拟主机`www.victor.com`的配置：
+
+	[root@VM_0_15_centos vhost]# cat victor.conf 
+	server {
+	        listen 80;
+	        server_name www.victor.com victor.com *.victor.com;
+	        index index.html
+	        access_log  logs/victor.access.log;
+	        root /data/wwwroot/www.victor.com;
+	        rewrite_log on;
+	        location / {
+	                rewrite /1.html /2.html last;
+	                rewrite /2.html /3.html;
+	        }
+	
+	        location /2.html {
+	                rewrite /2.html /b.html;
+	        }
+	        location /3.html {
+	                rewrite /3.html /b.html;
+	        }
+	}
+	[root@VM_0_15_centos vhost]# 
+	
+使用`last`。
+
+验证：
+
+	# victor @ VICTORDONG-MB0 in ~ [1:51:38] 
+	$ curl -H "Host:victor.com" http://150.109.76.79/1.html                                                      
+	<html>
+	<head><title>404 Not Found</title></head>
+	<body>
+	<center><h1>404 Not Found</h1></center>
+	<hr><center>nginx/1.16.0</center>
+	</body>
+	</html>
+	
+	# victor @ VICTORDONG-MB0 in ~ [1:51:48] 
+	$ 
+	
+可以看到返回`404`。这是符合预期的。
+
+查看下rewrite日志：
+
+
+	[root@VM_0_15_centos vhost]# !tail
+	tail ../../logs/error.log
+	2019/05/28 01:51:43 [notice] 22372#0: getrlimit(RLIMIT_NOFILE): 1024:4096                                    
+	2019/05/28 01:51:43 [notice] 22373#0: start worker processes                                                 
+	2019/05/28 01:51:43 [notice] 22373#0: start worker process 22375                                             
+	2019/05/28 01:51:47 [notice] 22375#0: *1 "/1.html" matches "/1.html", client: 125.69.41.150, server: www.victor.com, request: "GET /1.html HTTP/1.1", host: "victor.com"                                                   
+	2019/05/28 01:51:47 [notice] 22375#0: *1 rewritten data: "/2.html", args: "", client: 125.69.41.150, server: www.victor.com, request: "GET /1.html HTTP/1.1", host: "victor.com"                                           
+	2019/05/28 01:51:47 [notice] 22375#0: *1 "/2.html" matches "/2.html", client: 125.69.41.150, server: www.victor.com, request: "GET /1.html HTTP/1.1", host: "victor.com"                                                   
+	2019/05/28 01:51:47 [notice] 22375#0: *1 rewritten data: "/b.html", args: "", client: 125.69.41.150, server: www.victor.com, request: "GET /1.html HTTP/1.1", host: "victor.com"                                           
+	2019/05/28 01:51:47 [notice] 22375#0: *1 "/1.html" does not match "/b.html", client: 125.69.41.150, server: www.victor.com, request: "GET /1.html HTTP/1.1", host: "victor.com"                                            
+	2019/05/28 01:51:47 [notice] 22375#0: *1 "/2.html" does not match "/b.html", client: 125.69.41.150, server: www.victor.com, request: "GET /1.html HTTP/1.1", host: "victor.com"                                            
+	2019/05/28 01:51:47 [error] 22375#0: *1 open() "/data/wwwroot/www.victor.com/b.html" failed (2: No such file or directory), client: 125.69.41.150, server: www.victor.com, request: "GET /1.html HTTP/1.1", host: "victor.com"
+	[root@VM_0_15_centos vhost]#
+
+可以看到，先是匹配到了locaion `location /`。然后执行里面的rewrite，将请求rewrite到了`/2.html`。
+
+但是由于`last`的存在，不会去执行后面的rewrite，也就是不会去执行`rewrite /1.html /2.html last;`。
+
+然后跳出当前location。
+
+新请求`/2.html`继续匹配各个location，越精确越优先，所以匹配到了location `location /2.html`。执行里面的`rewrite /2.html /b.html;`，将请求rewrite到了`/b.html`，然后跳出当前location。
+
+新请求`/b.html`继续匹配各个location。匹配到了location `location / `，但是没有匹配到里面的rewrite规则。所以最终去请求`/b.html`。
+
+`b.html`不存在，所以报错`404`。
+
+
+**结论**
+
+- 当rewrite规则在location{}外，break和last作用一样，遇到break或last后，其后续的rewrite/return语句不再执行。但后续有location{}的话，还会近一步执行location{}里面的语句,当然前提是请求必须要匹配该location。
+- 当rewrite规则在location{}里，遇到break后，本location{}与其他location{}的所有rewrite/return规则都不再执行。
+- 当rewrite规则在location{}里，遇到last后，本location{}里后续rewrite/return规则不执行，但重写后的url再次从头开始执行所有规则，哪个匹配执行哪个。

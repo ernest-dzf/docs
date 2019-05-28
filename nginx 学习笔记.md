@@ -1,5 +1,5 @@
 # nginx 学习笔记 #
-# 安装
+## 安装 ##
 步骤如下：
 
 1. 下载源码，`wget http://nginx.org/download/nginx-1.16.0.tar.gz`
@@ -883,3 +883,39 @@ nginx 的`ngx_http_rewrite_module`模块给我们提供了一些很好用的功�
 - 当rewrite规则在location{}外，break和last作用一样，遇到break或last后，其后续的rewrite/return语句不再执行。但后续有location{}的话，还会近一步执行location{}里面的语句,当然前提是请求必须要匹配该location。
 - 当rewrite规则在location{}里，遇到break后，本location{}与其他location{}的所有rewrite/return规则都不再执行。
 - 当rewrite规则在location{}里，遇到last后，本location{}里后续rewrite/return规则不执行，但重写后的url再次从头开始执行所有规则，哪个匹配执行哪个。
+
+## return ##
+
+可以直接在`server`中reutrn响应的状态码、字符串或者url。在该作用域内return后面的所有nginx配置都是无效的。
+
+可以使用在server、location以及if配置中。
+
+### return url ###
+比如默认虚拟主机配置如下：
+
+	[root@VM_0_15_centos vhost]# cat default.conf 
+	server {
+	        listen 80 default_server;
+	        root /data/wwwroot/www.default.com;
+	        return http://www.baidu.com;
+	}
+	[root@VM_0_15_centos vhost]# 
+	
+我们在电脑浏览器访问`150.109.76.79`，就被直接跳转到了百度的首页。（150.109.76.79是我们nginx服务部署的机器IP）。
+
+return url 可以达到域名跳转的功能。
+
+### return code ###
+
+返回http 状态码。比如：
+
+	[root@VM_0_15_centos vhost]# cat default.conf 
+	server {
+	        listen 80 default_server;
+	        root /data/wwwroot/www.default.com;
+	        return 404;
+	}
+	[root@VM_0_15_centos vhost]# 
+
+那么我们在浏览器上访问`150.109.76.79`，就会显示`404 Not Found`。
+

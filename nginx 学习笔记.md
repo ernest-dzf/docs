@@ -1,3 +1,4 @@
+[toc]
 # nginx 学习笔记 #
 ## 安装 ##
 步骤如下：
@@ -563,7 +564,25 @@ nginx可以配置虚拟主机，就是在`nginx.conf`配置文件中写配置。
 
 这样达到减少一台机器需求的目的。
 
+## if ##
 
+nginx 配置文件中可以使用`if`指令。
+
+比如：
+
+	if ($request_method = POST)
+	{
+	    return 405;
+	}
+
+逻辑判断符号有`=`，`~`，`~*`。
+
+- `=`表示相等
+- `~`表示正则匹配
+- `~*`表示不区分大小写正则匹配
+
+
+目标字符串可以是正则表达式，通常不用加引号（比如上面例子中的POST），但表达式中有特殊符号时，比如空格、花括号、分号等，需要用单引号引起来。
 ## rewrite
 
 nginx 的`ngx_http_rewrite_module`模块给我们提供了一些很好用的功能。
@@ -884,6 +903,168 @@ nginx 的`ngx_http_rewrite_module`模块给我们提供了一些很好用的功�
 - 当rewrite规则在location{}里，遇到break后，本location{}与其他location{}的所有rewrite/return规则都不再执行。
 - 当rewrite规则在location{}里，遇到last后，本location{}里后续rewrite/return规则不执行，但重写后的url再次从头开始执行所有规则，哪个匹配执行哪个。
 
+### rewrite 规则 ###
+
+- rewrite的语法格式为：
+
+		rewrite regex replacement [flag]
+- rewrite 配置可以在`if`，`server`，`location`配置段生效
+- replacement是目标跳转的URI，可以是`http://`或者`https://`开头，也可以省略掉$host，直接写$request_uri部分
+- flag用来设置rewrite对URI的处理行为，可以为`break`，`last`，`redirect`和`permanent`。`redirect`表示临时重定向，而`permanent`表示永久重定向
+
+### rewrite 实战 ###
+
+**访问二级目录**
+
+比如在虚拟主机`www.victor.com`的主目录下建立一个子目录`sub`，sub目录下有文件`index.html`：
+
+	[root@VM_0_15_centos sub]# pwd
+	/data/wwwroot/www.victor.com/sub
+	[root@VM_0_15_centos sub]# ls
+	index.html
+	[root@VM_0_15_centos sub]# 
+	
+虚拟主机`www.victor.com`的配置如下：
+
+	[root@VM_0_15_centos vhost]# cat victor.conf 
+	server {
+	        listen 80;
+	        server_name www.victor.com victor.com *.victor.com;
+	        index index.html
+	        access_log  logs/victor.access.log;
+	        root /data/wwwroot/www.victor.com;
+	        rewrite_log on;
+	
+	        rewrite /(.*)   /sub/$1 last;
+	}
+	[root@VM_0_15_centos vhost]# 
+	
+然后我们验证访问二级目录：
+
+	# victor @ VICTORDONG-MB0 in ~ [1:01:33] 
+	$ curl -H "Host:victor.com" http://150.109.76.79:80/index.html   
+	This is www.victor.com!
+	sub directory
+	
+	# victor @ VICTORDONG-MB0 in ~ [1:01:34] 
+	$ 
+可以看到访问到了`/data/wwwroot/www.victor.com/sub/index.html`这个文件。
+
+
+
+
+**静态请求分离**
+
+有时候我们需要将静态请求和动态请求分离。将网站静态资源（html，js，img等文件）与后天应用分开部署，提高用户访问静态代码的速度。
+
+举个例子：
+
+	[root@VM_0_15_centos vhost]# cat victor.conf 
+	server {
+	        listen 80;
+	        server_name www.victor.com victor.com *.victor.com;
+	        index index.html
+	        access_log  logs/victor.access.log;
+	        root /data/wwwroot/www.victor.com;
+	        rewrite_log on;
+	        if ( $uri ~* 'jpg|jpeg|gif|css|png|js$')
+	        {
+	                rewrite /(.*) http://img.xxxxxx.com/$1 permanent;
+	        }
+	}
+	[root@VM_0_15_centos vhost]# 
+
+上面的配置是说，凡是请求`jpg,jpeg,gif,css,png,js`等后缀结尾的文件，全部重定向到`http://img.xxxxxx.com`主机上去请求。
+
+**防盗链**
+
+**伪静态**
+
+伪静态主要是为了增强搜索引擎的友好面。
+
+
+**多个条件的并且**
+
+有时候需要判断多个条件，当都满足时，然后去执行一定的操作。
+
+nginx 配置文件 语法规则不支持`if`的嵌套。也就是说不支持这样：
+
+	server {
+	        listen 80;
+	        server_name www.victor.com victor.com *.victor.com;
+	        index index.html
+	        access_log  logs/victor.access.log;
+	        root /data/wwwroot/www.victor.com;
+	        rewrite_log on;
+	        if ( $uri ~* 'jpg|jpeg|gif|css|png|js$')
+	        {
+	                if ($request_uri ~* '^/sub/victor.png')
+	                {
+	                        rewrite /(.*) /and.html last;
+	                }
+	        }
+	}
+	[root@VM_0_15_centos vhost]# service nginx configtest 
+	nginx: [emerg] "if" directive is not allowed here in /usr/local/nginx/conf/vhost/victor.conf:11
+	nginx: configuration file /usr/local/nginx/conf/nginx.conf test failed
+	[root@VM_0_15_centos vhost]# 
+
+但是我们可以这样：
+
+	[root@VM_0_15_centos vhost]# cat victor.conf 
+	server {
+	        listen 80;
+	        server_name www.victor.com victor.com *.victor.com;
+	        index index.html
+	        access_log  logs/victor.access.log;
+	        root /data/wwwroot/www.victor.com;
+	        rewrite_log on;
+	        set $rule 0;
+	        if ( $uri ~* 'jpg|jpeg|gif|css|png|js$')
+	        {
+	                set $rule "${rule}1";
+	        }
+	        if ($request_uri ~* '^/sub/victor.png')
+	        {
+	                set $rule "${rule}2";
+	        }
+	
+	        if ($rule = "012")
+	        {
+	                rewrite /(.*) /and.html last;
+	        }
+	}
+	[root@VM_0_15_centos vhost]# 
+	
+验证下：
+
+	# victor @ VICTORDONG-MB0 in ~ [1:33:53] 
+	$ curl -H "Host:victor.com" http://150.109.76.79:80/sub/victor.png 
+	This is www.victor.com!
+	and.html
+	
+	# victor @ VICTORDONG-MB0 in ~ [1:35:10] 
+	$ 
+
+我们最终访问到的是`/data/wwwroot/www.victor.com/and.html`。
+
+	[root@VM_0_15_centos www.victor.com]# cat and.html 
+	This is www.victor.com!
+	and.html
+	[root@VM_0_15_centos www.victor.com]# pwd
+	/data/wwwroot/www.victor.com
+	[root@VM_0_15_centos www.victor.com]# 
+
+这里我们通过控制变量`$rule`的值，来达到让多个条件取`&&`的效果。
+
+
+## nginx变量 ##
+上面提到了，我们可以在配置文件中设置变量的值。
+
+所有的nginx变量在nginx配置文件中必须带上`$`符号前缀。
+
+在nginx配置中，变量只能存放一种类型的值，有且也只存在一种类型，那就是字符串类型。
+
 ## return ##
 
 可以直接在`server`中reutrn响应的状态码、字符串或者url。在该作用域内return后面的所有nginx配置都是无效的。
@@ -905,6 +1086,25 @@ nginx 的`ngx_http_rewrite_module`模块给我们提供了一些很好用的功�
 
 return url 可以达到域名跳转的功能。
 
+这里需要注意的是，在return url的时候，url前面不能加状态码，比如`return 200 http://www.baidu.com`这种，这样返回的就是字符串了。
+
+如果加状态码的话，也是`return 301 http://www.baidu.com`或者`return 302 http://www.baidu.com`这种。
+
+这是因为301（永久重定向）和302（临时重定向）都表示重定向。
+
+我们也可以使用rewrite来达到同样的目的。比如：
+
+
+	[root@VM_0_15_centos vhost]# cat default.conf 
+	server {
+	        listen 80 default_server;
+	        root /data/wwwroot/www.default.com;
+	        rewrite /(.*) www.baidu.com;
+	}
+	[root@VM_0_15_centos vhost]# 
+
+同样可以达到跳转的目的。
+
 ### return code ###
 
 返回http 状态码。比如：
@@ -918,4 +1118,79 @@ return url 可以达到域名跳转的功能。
 	[root@VM_0_15_centos vhost]# 
 
 那么我们在浏览器上访问`150.109.76.79`，就会显示`404 Not Found`。
+
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/404.png)
+
+### return 字符串 ###
+
+default虚拟主机如下：
+
+	[root@VM_0_15_centos vhost]# cat default.conf 
+	server {
+	        listen 80 default_server;
+	        root /data/wwwroot/www.default.com;
+	        return 200 "This is www.default.com";
+	}
+	[root@VM_0_15_centos vhost]# 
+
+
+ 验证如下：
+ 
+	# victor @ VICTORDONG-MB0 in ~ [0:41:28] 
+	$ curl http://150.109.76.79
+	This is www.default.com%                                                                                      
+	
+	# victor @ VICTORDONG-MB0 in ~ [0:53:57] 
+	$ 
+### return 变量 ###
+
+也可以return nginx的变量。比如：
+
+	[root@VM_0_15_centos vhost]# cat default.conf 
+	server {
+	        listen 80 default_server;
+	        root /data/wwwroot/www.default.com;
+	        return 200 "$host $request_uri";
+	}
+	[root@VM_0_15_centos vhost]# 
+
+验证如下：
+
+	# victor @ VICTORDONG-MB0 in ~ [0:56:33] 
+	$ curl http://150.109.76.79
+	150.109.76.79 /%                                                                                              
+	
+	# victor @ VICTORDONG-MB0 in ~ [0:56:40] 
+	$ 
+	
+## nginx常用变量 ##
+
+nginx常用全局变量如下表：
+
+| 变量       | 说明    |
+| :--------   | :-----   | 
+|$args       |请求中的参数，如www.123.com/1.php?a=1&b=2的$args就是a=1&b=2 |
+|$content_length |HTTP请求信息里的"Content-Length" |
+|$conten_type    |  HTTP请求信息里的"Content-Type"   |
+|$document_root|nginx虚拟主机配置文件中的root参数对应的值|
+|$document_uri|当前请求中不包含指令的URI，如www.123.com/1.php?a=1&b=2的$document_uri就是1.php,不包含后面的参数|
+|$host|主机头，也就是域名|
+|$http_user_agent|客户端的详细信息，也就是浏览器的标识，用curl -A可以指定|
+|$http_cookie|客户端的cookie信息|
+|$limit_rate|如果nginx服务器使用limit_rate配置了显示网络速率，则会显示，如果没有设置， 则显示0|
+|$remote_addr|客户端的公网ip|
+|$remote_port|客户端的port|
+|$remote_user|如果nginx有配置认证，该变量代表客户端认证的用户名|
+|$request_body_file|做反向代理时发给后端服务器的本地资源的名称|
+|$request_method|请求资源的方式，GET/PUT/DELETE等|
+|$request_filename|当前请求的资源文件的路径名称，相当于是$document_root/$document_uri的组合|
+|$request_uri|请求的链接，包括$document_uri和$args|
+|$scheme|请求的协议，如ftp,http,https|
+|$server_protocol|客户端请求资源使用的协议的版本，如HTTP/1.0，HTTP/1.1，HTTP/2.0等|
+|$server_addr|服务器IP地址|
+|$server_name|服务器的主机名|
+|$server_port|服务器的端口号|
+|$uri|和$document_uri相同|
+|$http_referer|客户端请求时的referer，通俗讲就是该请求是通过哪个链接跳过来的，用curl -e可以指定|
+	
 

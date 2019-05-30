@@ -4,6 +4,11 @@ sed的语法：
 
 **sed [options] 'command' filename(s)**
 
+
+sed命令的常用选项：
+
+- -n, 只打印模式匹配的行,一般与 p 一起使用
+
 sed的寻址方式：
 
 1. 单行寻址：［line-address］command

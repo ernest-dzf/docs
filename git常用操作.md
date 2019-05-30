@@ -231,3 +231,12 @@ xxx.orig文件是冲突现场，解决完冲突后，可以选择将其删除掉
 	
 	victordong@victordong-pc0 MINGW64 /d/code/liaoning_tdsql_shark/deps/common (tdsql-refactor-develop)
 	$
+## git 更新远程分支列表 ##
+
+远端创建了分支，但是使用`git branch -a`看不到远端分支信息，导致不能checkout该分支。
+
+	 git remote update origin --prune
+
+## git 恢复到之前某一次提交 ##
+
+有时候本地commit，但是不想把这个commit提交到远端，可以使用`git reset --hard xxxx`，然后再进行更改，push。

@@ -262,6 +262,8 @@ nginx配置文件名称为`nginx.conf`，默认的话会是在`/usr/local/nginx/
 
 可以看到 `http` 里面包含`server`，`server`里面包含`location`。
 
+
+
 ## 虚拟主机
 
 nginx可以配置虚拟主机，就是在`nginx.conf`配置文件中写配置。
@@ -1058,12 +1060,258 @@ nginx 配置文件 语法规则不支持`if`的嵌套。也就是说不支持这
 这里我们通过控制变量`$rule`的值，来达到让多个条件取`&&`的效果。
 
 
+## nginx模块 ##
+
+nginx 可以通过模块来丰富他的功能。这里以[echo-nginx-module](https://github.com/openresty/echo-nginx-module#installation)为例。
+
+### 安装 ###
+1. 下载`echo-nginx-module`模块的源码
+
+		https://github.com/openresty/echo-nginx-module.git
+2. 重新编译nginx
+
+		[root@VM_0_15_centos nginx-1.16.0]# ls
+		auto     CHANGES.ru  configure  html     Makefile  objs    src
+		CHANGES  conf        contrib    LICENSE  man       README
+		[root@VM_0_15_centos nginx-1.16.0]# pwd
+		/root/src/nginx-1.16.0
+		[root@VM_0_15_centos nginx-1.16.0]# ./configure --prefix=/usr/local/nginx --add-
+		module=/root/src/echo-nginx-module
+	其中，`/root/src/echo-nginx-module`是`echo-nginx-module`模块的源码路径。
+3. make
+4. make install
+
+总结一下，就是需要重新编译nginx，然后安装。
+
+最好事先将nginx进程停止。
+
+	service nginx stop
+	
+### 使用 ###
+以虚拟主机`www.wind.com`为例，先看下虚拟主机的配置：
+
+	[root@VM_0_15_centos vhost]# ls
+	default.conf  victor_8080.conf  victor.conf  wind.conf
+	[root@VM_0_15_centos vhost]# pwd
+	/usr/local/nginx/conf/vhost
+	[root@VM_0_15_centos vhost]# cat wind.conf 
+	server {
+	        listen 80;
+	        server_name www.wind.com;
+	        root /data/wwwroot/www.wind.com;
+	        location / {
+	                echo "Test echo module";
+	        }
+	}
+	[root@VM_0_15_centos vhost]# 
+
+验证一下：
+
+	# victor @ VICTORDONG-MB0 in ~ [2:12:40] 
+	$ curl -H "Host:www.wind.com" http://119.28.68.178:80           
+	Test echo module
+	
+	# victor @ VICTORDONG-MB0 in ~ [2:12:43] 
+	$ 
+
+可以看到直接返回了`echo`指令后面的内容。而并没有返回`/data/wwwroot/www.wind.com/index.html`里面的内容。
+	
+	[root@VM_0_15_centos vhost]# ls -l /data/wwwroot/www.wind.com/index.html 
+	-rw-r--r-- 1 root root 22 5月  26 22:28 /data/wwwroot/www.wind.com/index.html
+	[root@VM_0_15_centos vhost]# cat /data/wwwroot/www.wind.com/index.html 
+	This is www.wind.com!
+	[root@VM_0_15_centos vhost]# 
+	
+如果我们把echo指令去掉，像下面这样，
+
+	[root@VM_0_15_centos vhost]# ls
+	default.conf  victor_8080.conf  victor.conf  wind.conf                         
+	[root@VM_0_15_centos vhost]# vim wind.conf                                     
+	[root@VM_0_15_centos vhost]# cat wind.conf 
+	server {
+	        listen 80;
+	        server_name www.wind.com;
+	        root /data/wwwroot/www.wind.com;
+	        location / {
+	        }
+	}
+	[root@VM_0_15_centos vhost]# 
+
+那么：
+
+
+	# victor @ VICTORDONG-MB0 in ~ [2:15:41] 
+	$ curl -H "Host:www.wind.com" http://119.28.68.178:80
+	This is www.wind.com!
+	
+	# victor @ VICTORDONG-MB0 in ~ [2:15:42] 
+	$ 
+	
+可以看到返回的就是`index.html`的内容。
+
+总结一下：`echo`会屏蔽掉请求的文件，比如上面的`index.html`。
+
 ## nginx变量 ##
 上面提到了，我们可以在配置文件中设置变量的值。
 
-所有的nginx变量在nginx配置文件中必须带上`$`符号前缀。
+
 
 在nginx配置中，变量只能存放一种类型的值，有且也只存在一种类型，那就是字符串类型。
+
+比如上面我们用到的`set $rule 0;`，是使用ngx_rewrite模块的`set`配置指令对变量`$rule`进行了赋值操作。我们把字符串`0`赋值给了`$rule`变量。
+
+所有的nginx变量在nginx配置文件中必须带上`$`符号前缀。这种表示方法的好处是显而易见的，那就是可以把变量嵌入到字符串常量中，以构造出新的字符串。比如：
+
+	set $a hello;
+	set $b "$a, $a";
+
+执行完后，`$b`的值是`hello, hello`。
+
+这种技术在perl中被称为**变量插值**，它让专门的字符串拼接运算符变得不再那么必要。
+
+
+需要说明的是，并不是所有的配置指令都支持**变量插值**。事实上，指令参数是否支持变量插值，取决于该指令的实现模块。比如上面谈到的`echo-nginx-module`模块是支持**变量插值**的。
+
+那如果想直接输出美元符号`$`，有办法转义么？	
+
+目前没有办法！
+
+不过可以通过不支持**变量插值**的模块配置指令构造出取值为`$`的nginx变量，然后再在echo中使用这个变量。比如：
+
+	[root@VM_0_15_centos vhost]# cat wind.conf 
+	geo $dollar {
+	        default "$";
+	}
+	server {
+	        listen 80;
+	        server_name www.wind.com;
+	        root /data/wwwroot/www.wind.com;
+	        location / {
+	                echo "This is a dollar sign: $dollar";
+	        }
+	}
+	[root@VM_0_15_centos vhost]# 
+	
+验证如下：
+
+	# victor @ VICTORDONG-MB0 in ~ [9:45:29]                                       
+	$ curl -H "Host:www.wind.com" http://119.28.68.178:80/                         
+	This is a dollar sign: $
+	
+	# victor @ VICTORDONG-MB0 in ~ [9:47:39]                                       
+	$ 
+
+
+
+在**变量插值**的case中，当引用的变量名后面跟着其他字符时，我们需要通过`{}`来消除歧义，比如：
+
+	server {  
+	  listen 8080;  
+	 
+	  location /test {  
+	    set $first "hello ";  
+	    echo "${first}world";  
+	  }  
+	} 
+
+这里我们需要给`first`变量加上`{}`括起来，不然nginx会误认为引用了变量`$firstworld`。
+
+### set变量 ###
+
+`set`指令不仅有赋值的功能，还有创建nginx变量的副作用。即当作为赋值对象的变量尚不存在时，它会自动创建改变量。
+
+比如上面提到的`$first`变量，`set`指令创建了`first`变量。
+
+如果我们使用不存在的变量，那么nginx就启动不起来。
+
+### 变量何时创建 ###
+
+nginx变量的创建和赋值发生在完全不同的时间段。
+
+创建只能发生在nginx配置加载的时候，而赋值操作则只会发生在请求实际处理的时候。
+
+这意味着不创建而直接使用变量会导致启动失败，同时也意味着我们无法在请求处理时动态地创建新的 nginx 变量。
+
+nginx 变量一旦创建，其变量名的可见范围就是整个 nginx 配置，甚至可以跨越不同虚拟主机的 server 配置块。
+
+比如下面：
+
+	[root@VM_0_15_centos vhost]# cat wind.conf 
+	server {
+	        listen 80;
+	        server_name www.wind.com;
+	        root /data/wwwroot/www.wind.com;
+	        location / {
+	                echo "var=$duck";
+	        }
+	        location /var {
+	                set $duck "duck";
+	                echo "var=$duck";
+	        }
+	}
+	[root@VM_0_15_centos vhost]# 
+
+变量`duck`的创建是在`/var`中，但是在`/`中也是可以使用变量`duck`的。
+
+
+验证如下：
+
+	# victor @ VICTORDONG-MB0 in ~ [18:30:24]                                      
+	$ curl -H "Host:www.wind.com" http://119.28.68.178:80/
+	var=
+	
+	# victor @ VICTORDONG-MB0 in ~ [18:35:11] 
+	$ curl -H "Host:www.wind.com" http://119.28.68.178:80/var
+	var=duck
+	
+	# victor @ VICTORDONG-MB0 in ~ [18:35:15] 
+	$ 
+
+
+可以发现，请求`/var`接口时，我们得到了duck；请求`/`接口时，我们得到的是空字符串，因为用户变量未赋值就输出的话，得到的便是空字符串。
+
+我们还可以窥见的另一个重要特性是，nginx 变量名的可见范围虽然是整个配置，但每个请求都有所有变的量独立副本，或者说都有各变量用来存放值的容器的独立副本，彼此互不干扰。
+
+nginx 变量的生命期是不可能跨越请求边界的。
+
+### 变量的生命周期 ###
+
+nginx的变量生命周期是是与请求相关的，而不是与location相关。
+
+比如：
+
+	[root@VM_0_15_centos vhost]# cat wind.conf 
+	server {
+	        listen 80;
+	        server_name www.wind.com;
+	        root /data/wwwroot/www.wind.com;
+	
+	        access_log  logs/wind.access.log;
+	        location / {
+	                set $duck "duck";
+	                echo_exec /var;
+	        }
+	
+	        location /var {
+	                echo "var=$duck";
+	        }
+	}
+	[root@VM_0_15_centos vhost]# 
+
+验证如下：
+
+	# victor @ VICTORDONG-MB0 in ~ [1:18:09] 
+	$ curl -H "Host:www.wind.com" http://119.28.68.178:80/
+	var=duck
+	
+	# victor @ VICTORDONG-MB0 in ~ [1:18:10] 
+	$ 
+
+可以看到，我们访问的location是`/`，在location`/`中，我们创建了变量`$duck`，并设置了值为duck。
+
+然后通过`echo_exec`跳转到了`/var`，输出变量`$duck`的值为duck。
+
+变量`$duck`的值跨越了location。
 
 ## return ##
 

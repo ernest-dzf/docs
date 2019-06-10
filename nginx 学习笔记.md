@@ -168,7 +168,7 @@
 		Starting nginx (via systemctl):                            [  OK  ]
 		[root@VM_0_15_centos init.d]# 
 		
-8. 如果想要开机启动可以使用`chkconfig`，`chkconfig --add nginx`，`chkconfig nginx --level 4 on`。
+8. 如果想要开机启动可以使用`chkconfig`。`chkconfig --add nginx`，`chkconfig nginx --level 4 on`。
 
 		[root@VM_0_15_centos init.d]# chkconfig --list
 		
@@ -589,12 +589,13 @@ nginx 配置文件中可以使用`if`指令。
 
 nginx 的`ngx_http_rewrite_module`模块给我们提供了一些很好用的功能。
 
+
+
 - 域名跳转
 - URL重写
 - 动静分离
 
-
-先来看一个例子。
+这个模块是自带的，不需要另外编译安装。先来看一个例子。
 
 虚拟主机`www.victor.com`的配置如下：
 
@@ -980,10 +981,110 @@ nginx 的`ngx_http_rewrite_module`模块给我们提供了一些很好用的功�
 
 **防盗链**
 
+我们可以通过http请求头部的Referer请求行来判断请求的来源。如果这个来源不符合我们的预期，我们可以拒绝掉这个请求。这样就达到了防盗链的目的。
+
+比如:
+
+	[root@VM_0_15_centos vhost]# cat wind.conf 
+	server {
+	        listen 80;
+	        server_name www.wind.com;
+	        root /data/wwwroot/www.wind.com;
+	
+	        access_log  logs/wind.access.log;
+	        location / {
+	                valid_referers none blocked *.wind.com wind.com;
+	                if ($invalid_referer)
+	                {
+	                        return 200 "forbidden";
+	                }
+	                echo "allowed";
+	        }
+	}
+	[root@VM_0_15_centos vhost]# 
+	
+主机`www.wind.com`，只有当http请求中Referer字段符合特定要求时，才会返回`allowed`；否则返回`forbidden`。
+
+
+`valid_referers none blocked *.wind.com wind.com;`指定了，只有当http请求中Referer字段符合以下几种要求时才会返回`allowed`。
+
+- none，Referer不存在。
+- blocked，Referer头部的值不以`http://`或者`https://`开头。
+- *.wind.com，Referer头部的值形式为`http://*.wind.com`。
+- wind.com，Referer头部的值形式为`http://wind.com`。
+
+其他情况返回`forbidden`。
+
+验证如下：
+
+	# victor @ VICTORDONG-MB0 in ~ [1:05:05]                                       
+	$ curl -H "Host:www.wind.com" http://hkcvm:80/ -v -e "https://h.wind.com"      
+	*   Trying 124.156.182.201...
+	* TCP_NODELAY set
+	* Connected to hkcvm (124.156.182.201) port 80 (#0)                            
+	> GET / HTTP/1.1
+	> Host:www.wind.com
+	> User-Agent: curl/7.54.0
+	> Accept: */*
+	> Referer: https://h.wind.com
+	>
+	< HTTP/1.1 200 OK
+	< Server: nginx/1.16.0
+	< Date: Mon, 10 Jun 2019 17:05:25 GMT
+	< Content-Type: application/octet-stream                                       
+	< Transfer-Encoding: chunked
+	< Connection: keep-alive
+	<
+	allowed
+	* Connection #0 to host hkcvm left intact                                      
+	
+	# victor @ VICTORDONG-MB0 in ~ [1:05:25]                                       
+	$ 
+
+forbidden的case如下：
+
+	# victor @ VICTORDONG-MB0 in ~ [1:05:25]                                       
+	$ curl -H "Host:www.wind.com" http://hkcvm:80/ -v -e "https://h.victor.com"    
+	*   Trying 124.156.182.201...
+	* TCP_NODELAY set
+	* Connected to hkcvm (124.156.182.201) port 80 (#0)                            
+	> GET / HTTP/1.1
+	> Host:www.wind.com
+	> User-Agent: curl/7.54.0
+	> Accept: */*
+	> Referer: https://h.victor.com
+	>
+	< HTTP/1.1 200 OK
+	< Server: nginx/1.16.0
+	< Date: Mon, 10 Jun 2019 17:08:17 GMT
+	< Content-Type: application/octet-stream                                       
+	< Content-Length: 9
+	< Connection: keep-alive
+	<
+	* Connection #0 to host hkcvm left intact                                      
+	forbidden%                                                                     
+	
+	# victor @ VICTORDONG-MB0 in ~ [1:08:18]                                       
+	$ 
+	
+上面提到的`valid_referers`是一种nginx 指令。
+
 **伪静态**
 
 伪静态主要是为了增强搜索引擎的友好面。
 
+比如discuz伪静态配置如下：
+
+	location /  {
+	    rewrite ^([^\.]*)/topic-(.+)\.html$ $1/portal.php?mod=topic&topic=$2 last;
+	    rewrite ^([^\.]*)/forum-(\w+)-([0-9]+)\.html$ $1/forum.php?mod=forumdisplay&fid=$2&page=$3 last;
+	    rewrite ^([^\.]*)/thread-([0-9]+)-([0-9]+)-([0-9]+)\.html$ $1/forum.php?mod=viewthread&tid=$2&extra=page%3D$4&page=$3 last;
+	    rewrite ^([^\.]*)/group-([0-9]+)-([0-9]+)\.html$ $1/forum.php?mod=group&fid=$2&page=$3 last;
+	    rewrite ^([^\.]*)/space-(username|uid)-(.+)\.html$ $1/home.php?mod=space&$2=$3 last;
+	    rewrite ^([^\.]*)/(fid|tid)-([0-9]+)\.html$ $1/index.php?action=$2&value=$3 last;
+	}
+	
+用户是通过xxx.html链接来访问的，实际上却是访问到了动态网页。
 
 **多个条件的并且**
 
@@ -1270,7 +1371,7 @@ nginx 变量一旦创建，其变量名的可见范围就是整个 nginx 配置�
 
 可以发现，请求`/var`接口时，我们得到了duck；请求`/`接口时，我们得到的是空字符串，因为用户变量未赋值就输出的话，得到的便是空字符串。
 
-我们还可以窥见的另一个重要特性是，nginx 变量名的可见范围虽然是整个配置，但每个请求都有所有变的量独立副本，或者说都有各变量用来存放值的容器的独立副本，彼此互不干扰。
+我们还可以窥见的另一个重要特性是，nginx 变量名的可见范围虽然是整个配置，但每个请求都有所有变量的独立副本，彼此互不干扰。
 
 nginx 变量的生命期是不可能跨越请求边界的。
 

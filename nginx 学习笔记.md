@@ -1541,5 +1541,72 @@ nginx常用全局变量如下表：
 |$server_port|服务器的端口号|
 |$uri|和$document_uri相同|
 |$http_referer|客户端请求时的referer，通俗讲就是该请求是通过哪个链接跳过来的，用curl -e可以指定|
+
+## location ##
+
+nginx location 的语法规则是:
+
+	location [=|~|~*|^~] /uri/ {
+	}
+
+location 匹配的变量是`$uri`。
+
+规则优先级：
+
+`=`高于`^~`高于`~*`等于`~`高于`/`。
+
+
+
+比如虚拟主机`www.wind.com`配置如下：
+
+	[root@VM_0_15_centos vhost]# cat wind.conf 
+	server {
+	        listen 80;
+	        server_name www.wind.com;
+	        root /data/wwwroot/www.wind.com;
 	
+	        access_log  logs/wind.access.log;
+	        location / {
+	                echo "/";
+	        }
+	        location ~ abc {
+	                echo "~";
+	        }
+	        location ^~ /abc {
+	                echo "^~";
+	        }
+	}
+	[root@VM_0_15_centos vhost]# 
+
+验证如下：
+
+	# victor @ VICTORDONG-MB0 in ~ [1:06:35]                                       
+	$ curl -H "Host:www.wind.com" http://hkcvm:80/dabcd
+	~
+	
+	# victor @ VICTORDONG-MB0 in ~ [1:08:14] 
+	$ curl -H "Host:www.wind.com" http://hkcvm:80/abc  
+	^~
+	
+	# victor @ VICTORDONG-MB0 in ~ [1:08:19] 
+	$ curl -H "Host:www.wind.com" http://hkcvm:80/axbc
+	/
+	
+	# victor @ VICTORDONG-MB0 in ~ [1:08:30] 
+	$ 
+	
+需要注意的点，location不支持`!~`。
+
+也就是下面这样是非法的：
+
+	#非法的
+	location !~ abc {
+	        echo "~";
+	}
+
+	
+	
+## 正向代理 ##
+
+
 

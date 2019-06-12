@@ -1608,5 +1608,29 @@ location 匹配的变量是`$uri`。
 	
 ## 正向代理 ##
 
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/z_proxy.png)
+
+上面这张图说明了正向代理是咋回事。
+
+**请求方**告诉**代理服务器**，你去帮我从**web服务器**那里请求某个内容。**代理服务器**从**web服务器**那里取得内容之后，再返回给**请求方**。
+
+nginx 可以通过几行简单配置，实现正向代理。
+
+	[root@VM_0_15_centos vhost]# cat proxy.conf 
+	server {
+	        listen 80 default_server;
+	        resolver 119.29.29.29;
+	        access_log  logs/proxy.access.log;
+	        location / {
+	                proxy_pass http://$host$request_uri;
+	        }
+	}
+	[root@VM_0_15_centos vhost]# 
+
+
+上面`resolver 119.29.29.29`表示DNS服务器的地址。`119.29.29.29`为DNSPOD提供的DNS服务器。
+
+
+## 反向代理 ##
 
 

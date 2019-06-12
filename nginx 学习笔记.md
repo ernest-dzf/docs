@@ -1,5 +1,37 @@
 [toc]
 # nginx 学习笔记 #
+
+## 说明 ##
+
+后面会有一些测试代码，我们是通过一台本地mac和腾讯云上的云主机进行测试的。
+
+nginx安装在腾讯云的云主机上。
+
+在本机mac上配置了host，如下：
+
+	# victor @ VICTORDONG-MB0 in ~ [1:39:10] C:64
+	$ ping hkcvm -c 1
+	PING hkcvm (124.156.182.201): 56 data bytes
+	64 bytes from 124.156.182.201: icmp_seq=0 ttl=50 time=63.545 ms
+	
+	--- hkcvm ping statistics ---
+	1 packets transmitted, 1 packets received, 0.0% packet loss
+	round-trip min/avg/max/stddev = 63.545/63.545/63.545/0.000 ms
+	
+	# victor @ VICTORDONG-MB0 in ~ [1:39:13] 
+	$ ping wind.com -c 1
+	PING wind.com (124.156.182.201): 56 data bytes
+	64 bytes from 124.156.182.201: icmp_seq=0 ttl=50 time=61.300 ms
+	
+	--- wind.com ping statistics ---
+	1 packets transmitted, 1 packets received, 0.0% packet loss
+	round-trip min/avg/max/stddev = 61.300/61.300/61.300/0.000 ms
+	
+	# victor @ VICTORDONG-MB0 in ~ [1:39:28] 
+	$ 
+
+开始的时候，使用了`150.109.76.79`这个公网ip，后面ip被封了，就换了个ip，就是124.156.182.201。
+
 ## 安装 ##
 步骤如下：
 
@@ -1633,4 +1665,152 @@ nginx 可以通过几行简单配置，实现正向代理。
 
 ## 反向代理 ##
 
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/f_proxy.png)
 
+
+上面这张图说明了反向代理是咋回事。
+
+**请求方**是不知道代理服务器后面隐藏的**WEB服务器**的，它以为**代理服务器**就是真正的内容提供方。
+
+利用nginx可以方便地搭建反向代理服务器。
+
+举个例子。
+
+我们建立了3个虚拟主机，分别是`www.wind.com:80`，`www.wind.com:8080`和在8080端口监听的`default_server`。
+
+	[root@VM_0_15_centos vhost]# ls
+	default.conf  fproxy.conf  wind.conf
+	[root@VM_0_15_centos vhost]# cat default.conf 
+	server {
+	        listen 8080 default_server;
+	        location / {
+	                echo "default_server 8080";
+	        }
+	}
+	[root@VM_0_15_centos vhost]# cat fproxy.conf 
+	server {
+	        listen 80;
+	        server_name     www.wind.com wind.com;
+	        access_log  logs/proxy.access.log;
+	        location / {
+	                proxy_pass http://127.0.0.1:8080/;
+	                proxy_set_header Host $host;
+	                proxy_set_header X-Real-IP $remote_addr;
+	                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+	        }
+	}
+	[root@VM_0_15_centos vhost]# 
+	[root@VM_0_15_centos vhost]# cat wind.conf 
+	server {
+	        listen 8080;
+	        server_name     www.wind.com wind.com;
+	        location / {
+	                echo "www.wind.com 8080";
+	        }
+	}
+	[root@VM_0_15_centos vhost]# 
+
+
+
+其中`fproxy.conf`表示反向代理服务器的配置。
+
+我们验证一下：
+
+
+	# victor @ VICTORDONG-MB0 in ~ [1:02:36] 
+	$ curl -H "Host:www.wind.com" http://hkcvm:8080   
+	www.wind.com 8080
+	
+	# victor @ VICTORDONG-MB0 in ~ [1:02:37] 
+	$ curl http://hkcvm:8080 
+	default_server 8080
+	
+	# victor @ VICTORDONG-MB0 in ~ [1:02:48] 
+	$ 
+	
+可以看到，如果不加Host，那么访问到了8080端口的default_server；如果加了Host，那么访问到的是`www.wind.com:8080`虚拟主机。
+
+那如果我们访问`http://hkcvm`地址，而不是访问`http://hkcvm:8080`呢？
+
+验证一下：
+
+	# victor @ VICTORDONG-MB0 in ~ [1:02:48] 
+	$ curl -H "Host:www.wind.com" http://hkcvm     
+	www.wind.com 8080
+	
+	# victor @ VICTORDONG-MB0 in ~ [1:05:21] 
+	$ 
+	
+可以看到，最终访问到了`www.wind.com:8080`虚拟主机的内容。为什么呢？
+
+我们再来看下proxy的配置：
+
+	server {
+	        listen 80;
+	        server_name     www.wind.com wind.com;
+	        access_log  logs/proxy.access.log;
+	        location / {
+	                proxy_pass http://127.0.0.1:8080/;
+	                proxy_set_header Host $host;
+	                proxy_set_header X-Real-IP $remote_addr;
+	                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+	        }
+	}
+	
+`curl -H "Host:www.wind.com" http://hkcvm`，此请求在http报文请求行中标注了Host为`www.wind.com`，表示其想访问的是80端口监听的`www.wind.com`主机。
+
+而实际上80端口监听的`www.wind.com`主机是一个反向代理服务器，这个代理服务器偷偷摸摸地去请求http://127.0.0.1:8080端口监听的`$host`主机，此处`$host`取值为`www.wind.com`。
+
+也就是说代理服务器背地里类似`curl -H "Host:www.wind.com" http://127.0.0.1:8080/`这样发了次请求，然后把返回的内容吐还给最初的请求方。这个内容就是`www.wind.com 8080`。
+
+**可以看到请求方是不知道代理服务器背地里干了啥事的。**
+
+为了进一步验证，如果我们把上面`fproxy.conf`中的`proxy_set_header Host $host;`去掉，会怎么样呢？
+
+	[root@VM_0_15_centos vhost]# cat fproxy.conf 
+	server {
+	        listen 80;
+	        server_name     www.wind.com;
+	        access_log  logs/proxy.access.log;
+	        location / {
+	                proxy_pass http://127.0.0.1:8080/;
+	                proxy_set_header X-Real-IP $remote_addr;
+	                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+	        }
+	}
+	[root@VM_0_15_centos vhost]# 
+
+验证如下：
+
+	# victor @ VICTORDONG-MB0 in ~ [1:32:57] 
+	$ curl http://wind.com   
+	default_server 8080
+	
+	# victor @ VICTORDONG-MB0 in ~ [1:32:59] 
+	$ 
+	
+可以看到，最终访问到了8080端口监听的default_server。
+
+原因是由于代理服务器背地里去请求真正内容提供方时候，没有指定Host，你可以认为他是这么干的：
+
+	curl http://127.0.0.1:8080/
+
+这个会返回什么呢？
+
+	[root@VM_0_15_centos vhost]# curl http://127.0.0.1:8080/
+	default_server 8080
+	[root@VM_0_15_centos vhost]# 
+
+与上面在mac上使用`curl http://wind.com `请求的结果一致。
+
+
+### 区别 ###
+
+正向代理和方向代理，其实本质上都是nginx代替请求方去请求真正的资源，nginx不是真正的内容提供方。
+
+区别在于，对于反向代理，用户是不知道他的请求目的方是代理的，他以为他请求的就是真正内容的提供方。所以他在http请求时候，http报文的请求行中，Host字段一般填的就是代理服务器的server\_name。
+
+而对于正向代理，用户是知道这个代理的存在的。那么我在请求http的报文中，Host字段就不会填你代理服务器的server\_name，而是填上了我最终想访问的虚拟主机的server\_name。然后正向代理服务器根据这个server\_name去代替我去请求。
+
+
+其实我们从proxy\_pass这个nginx指令也可以看出，正向代理和反向代理，nginx干的事情几乎一样，都是通过proxy\_pass指令来实现的。

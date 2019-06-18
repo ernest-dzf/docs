@@ -231,6 +231,8 @@ nginx配置文件名称为`nginx.conf`，默认的话会是在`/usr/local/nginx/
 	
 ### 配置文件结构
 
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/nginx_conf_map.png)
+
 1. 全局配置
 2. events（网络连接相关）
 3. http

@@ -2127,8 +2127,23 @@ nginx 可以通过几行简单配置，实现正向代理。
 	
 Proxy3 直连服务器，它会给 XFF 追加 IP2，表示它是在帮 Proxy2 转发请求。列表中并没有 IP3，因为Proxy3是与服务器直接建立连接的，服务器端可以直接获取Proxy3的地址。nginx中，这个地址可以通过变量`$remote_addr`获取。
 
+一个例子，我从本地mac上请求香港的cvm的nginx的proxy1主机，
+
+	# victor @ VICTORDONG-MB0 in ~ [0:58:03] 
+	$ curl -H "Host:proxy1.com" http://hkcvm:8889 
+	test echo gzcvm
+	
+	# victor @ VICTORDONG-MB0 in ~ [1:09:12] 
+	$ 
+
+proxy1将请求通过`proxy_pass`转给本机的proxy2主机，proxy2通过`proxy_pass`将请求转给本机的proxy3，proxy3将请求通过`proxy_pass`转给另一台腾讯云的广州的cvm的nginx的80端口。
+
+最终我们在广州cvm抓包如下：
 
 
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/xxf.png)
+
+可以看到`X-Forwarded-For`符合预期。
 
 
 

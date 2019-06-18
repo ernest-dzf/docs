@@ -1200,7 +1200,7 @@ nginx 可以通过模块来丰富他的功能。这里以[echo-nginx-module](htt
 ### 安装 ###
 1. 下载`echo-nginx-module`模块的源码
 
-		https://github.com/openresty/echo-nginx-module.git
+			https://github.com/openresty/echo-nginx-module.git
 2. 重新编译nginx
 
 		[root@VM_0_15_centos nginx-1.16.0]# ls
@@ -1814,3 +1814,323 @@ nginx 可以通过几行简单配置，实现正向代理。
 
 
 其实我们从proxy\_pass这个nginx指令也可以看出，正向代理和反向代理，nginx干的事情几乎一样，都是通过proxy\_pass指令来实现的。
+
+
+## proxy_pass
+
+在正向代理和反向代理中，我们都使用过`proxy_pass`这个指令。
+
+语法格式为：
+
+	proxy_pass	URL
+	
+其中URL包括： 传输协议（`http://`, `https://`等）、主机名（域名或者IP:PORT）、uri。
+
+示例如下：
+
+	proxy_pass http://www.wind.com/;
+	proxy_pass http://192.168.200.101:8080/uri/;
+
+	
+对于`proxy_pass`，需要注意下面这几种情况的区别。
+
+
+**example1**
+
+	location /wind/ {
+		proxy_pass	http://127.0.0.1:8080;
+		proxy_set_header Host "victor.com";
+	}
+
+**example2**
+
+	location /wind/ {
+		proxy_pass	http://127.0.0.1:8080/;
+		proxy_set_header Host "victor.com";
+	}
+
+**example3**
+
+	location /wind/{
+		proxy_pass	http://127.0.0.1:8080/victor/;
+		proxy_set_header Host "victor.com";
+	}
+
+**example4**
+
+	location /wind/{
+		proxy_pass	http://127.0.0.1:8080/victor;
+		proxy_set_header Host "victor.com";
+	}
+
+
+验证上面四个case。
+
+先来看example1和exampl2的区别。
+
+假如server_name为`www.wind.com`,配置如下：
+
+	[root@VM_0_15_centos vhost]# cat wind.conf 
+	server {
+	        listen 8888;
+	        server_name     www.wind.com wind.com;
+	        location /wind/ {
+	                proxy_pass http://127.0.0.1:8080;
+	                proxy_set_header Host "victor.com";
+	        }
+	}
+	[root@VM_0_15_centos vhost]# 
+	
+主机`victor.com`配置如下：
+
+	[root@VM_0_15_centos vhost]# cat victor.conf 
+	server {
+	        listen 8080;
+	        server_name     www.victor.com victor.com;
+	        root /data/wwwroot/www.victor.com;
+	}
+	[root@VM_0_15_centos vhost]# 
+	
+主机`victor.com`的root目录：
+
+	[root@VM_0_15_centos vhost]# cat /data/wwwroot/www.victor.com/index.html 
+	This is www.victor.com!  8080 port
+	uri is /index.html
+	[root@VM_0_15_centos vhost]# cat /data/wwwroot/www.victor.com/wind/index.html 
+	This is www.victor.com!  8080 port
+	uri is /wind/index.html
+	[root@VM_0_15_centos vhost]# 
+	
+如果我们这样请求：
+
+	# victor @ VICTORDONG-MB0 in ~ [0:36:35] 
+	$ curl -H "Host:wind.com" http://hkcvm:8888/wind/index.html
+	This is www.victor.com!  8080 port
+	uri is /wind/index.html
+	
+	# victor @ VICTORDONG-MB0 in ~ [1:12:36] 
+	$ 
+
+可以看到，我们最终是访问到了`/data/wwwroot/www.victor.com/wind/index.html`，也就是说，`www.wind.com`虚拟主机配置中的`proxy_pass`最终把请求导向为了`http://127.0.0.1:8080/wind/index.html`。
+
+效果就类似于在nginx部署机器上这样请求，
+
+	[root@VM_0_15_centos vhost]# curl -H "vicor.com" http://127.0.0.1:8080/wind/index.html
+	This is www.victor.com!  8080 port
+	uri is /wind/index.html
+	[root@VM_0_15_centos vhost]# 
+
+
+但是如果我们把`www.wind.com`的配置小改一下，像下面这样：
+
+	[root@VM_0_15_centos vhost]# cat wind.conf 
+	server {
+	        listen 8888;
+	        server_name     www.wind.com wind.com;
+	        location /wind/ {
+	                proxy_pass http://127.0.0.1:8080/;
+	                proxy_set_header Host "victor.com";
+	        }
+	}
+	[root@VM_0_15_centos vhost]# 
+	
+然后我们还是和上面一样请求，
+
+	# victor @ VICTORDONG-MB0 in ~ [1:13:34] 
+	$ curl -H "Host:wind.com" http://hkcvm:8888/wind/index.html                                             
+	This is www.victor.com!  8080 port
+	uri is /index.html
+	
+	# victor @ VICTORDONG-MB0 in ~ [1:17:59] 
+	$ 
+	
+我们发现，我们最终是访问到了`/data/wwwroot/www.victor.com/index.html`，也就是说，`www.wind.com`虚拟主机配置中的`proxy_pass`最终把请求导向了`http://127.0.0.1:8080/index.html`。
+
+效果就类似于在nginx部署机器上这样请求，
+
+	[root@VM_0_15_centos vhost]# curl -H "vicor.com" http://127.0.0.1:8080/index.html
+	This is www.victor.com!  8080 port
+	uri is /index.html
+	[root@VM_0_15_centos vhost]# 
+	
+**我们可以看到`proxy_pass http://127.0.0.1:8080/`和`proxy_pass http://127.0.0.1:8080`的区别**。
+
+一个最终请求的是`http://127.0.0.1:8080/index.html`，一个最终请求的是`http://127.0.0.1:8080/wind/index.html`。
+
+
+再来看example3和example4的区别。
+
+我们将虚拟主机`www.wind.com`配置改为：
+
+	[root@VM_0_15_centos vhost]# cat wind.conf 
+	server {
+	        listen 8888;
+	        server_name     www.wind.com wind.com;
+	        location /wind/ {
+	                proxy_pass http://127.0.0.1:8080/victor/;
+	                proxy_set_header Host "victor.com";
+	        }
+	}
+	[root@VM_0_15_centos vhost]# 
+	
+虚拟主机`victor.com`的root目录如下：
+	
+	[root@VM_0_15_centos vhost]# cat /data/wwwroot/www.victor.com/victor/index.html 
+	victor/index.html
+	[root@VM_0_15_centos vhost]# 
+	
+我们如下请求：
+
+	# victor @ VICTORDONG-MB0 in ~ [17:57:19] 
+	$ curl -H "Host:wind.com" http://hkcvm:8888/wind/index.html
+	victor/index.html
+	
+	# victor @ VICTORDONG-MB0 in ~ [17:57:20] 
+	$ 
+	
+
+可以看到，访问到了`/data/wwwroot/www.victor.com/victor/index.html`，也就是说，我们实际访问的是：
+
+`http://127.0.0.1:8080/victor/index.html`。
+
+如果我们将`www.wind.com`配置改下，
+
+	[root@VM_0_15_centos vhost]# cat wind.conf 
+	server {
+	        listen 8888;
+	        server_name     www.wind.com wind.com;
+	        location /wind/ {
+	                proxy_pass http://127.0.0.1:8080/victor;
+	                proxy_set_header Host "victor.com";
+	        }
+	}
+	[root@VM_0_15_centos vhost]# 
+
+同样的请求会是怎么样呢？		
+
+	$ curl -H "Host:wind.com" http://hkcvm:8888/wind/index.html
+	<html>
+	<head><title>404 Not Found</title></head>
+	<body>
+	<center><h1>404 Not Found</h1></center>
+	<hr><center>nginx/1.16.0</center>
+	</body>
+	</html>
+	
+	# victor @ VICTORDONG-MB0 in ~ [18:21:42] 
+	$ 
+
+返回404。
+
+看下nginx的请求日志，
+
+	[root@VM_0_15_centos vhost]# cat ../../logs/access.log 
+	
+	127.0.0.1 - - [15/Jun/2019:18:23:02 +0800] "GET /victorindex.html HTTP/1.0" 404 153 "-" "curl/7.54.0"
+	171.223.97.110 - - [15/Jun/2019:18:23:02 +0800] "GET /wind/index.html HTTP/1.1" 404 153 "-" "curl/7.54.0"
+	[root@VM_0_15_centos vhost]# 
+	[root@VM_0_15_centos vhost]# cat ../../logs/access.log 
+
+	127.0.0.1 - - [15/Jun/2019:18:23:02 +0800] "GET /victorindex.html HTTP/1.0" 404 153 "-" "curl/7.54.0"
+	171.223.97.110 - - [15/Jun/2019:18:23:02 +0800] "GET /wind/index.html HTTP/1.1" 404 153 "-" "curl/7.54.0"
+	[root@VM_0_15_centos vhost]# cat ../../logs/error.log 
+	
+	2019/06/15 18:23:02 [error] 10799#0: *12 open() "/data/wwwroot/www.victor.com/victorindex.html" failed (2: No 
+	such file or directory), client: 127.0.0.1, server: www.victor.com, request: "GET /victorindex.html HTTP/1.0",
+	 host: "victor.com"
+	2019/06/15 18:23:03 [info] 10799#0: *10 client 171.223.97.110 closed keepalive connection
+
+
+可以看到最终请求的是`/data/wwwroot/www.victor.com/victorindex.html`，这个文件不存在，所以报404。
+
+也就是说，`www.wind.com`虚拟主机配置中的proxy_pass最终把请求导向了`http://127.0.0.1:8080/victorindex.html`。
+
+### 总结一下 ###
+
+对于下面这四个例子：
+
+**example1**
+
+	location /wind/ {
+		proxy_pass	http://127.0.0.1:8080;
+		proxy_set_header Host "victor.com";
+	}
+
+**example2**
+
+	location /wind/ {
+		proxy_pass	http://127.0.0.1:8080/;
+		proxy_set_header Host "victor.com";
+	}
+
+**example3**
+
+	location /wind/{
+		proxy_pass	http://127.0.0.1:8080/victor/;
+		proxy_set_header Host "victor.com";
+	}
+
+**example4**
+
+	location /wind/{
+		proxy_pass	http://127.0.0.1:8080/victor;
+		proxy_set_header Host "victor.com";
+	}
+
+我们这样请求的话，
+
+	curl -H "Host:wind.com" http://hkcvm:8888/wind/index.html
+	
+最终访问结果是：
+
+**example1**
+
+	http://127.0.0.1:8080/wind/index.html
+
+**example2**
+
+	http://127.0.0.1:8080/index.html
+
+**example3**
+
+	http://127.0.0.1:8080/victor/index.html
+
+**example4**
+
+	http://127.0.0.1:8080/victorindex.html
+
+
+建议：在proxy_pass后面的url后面，最好都加上`/`。
+
+
+## proxy\_set\_header ##
+
+前面已经使用了很多次`proxy_set_header`这个指令了。用于在http报文的请求行中设置一些字段的值。
+
+举几个例子：
+
+	proxy_set_header X-Real-IP $remote_addr;
+	
+这个用于让被代理服务器知道真正请求方的ip。
+
+`$remote_addr`是nginx的一个内置变量，其值为请求方的ip。
+
+	proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+	
+`X-Forwarded-For`是一个扩展头，由于表示HTTP请求端真实IP。他的格式为：
+
+	X-Forwarded-For:client, proxy1, proxy2
+	
+如果一个 HTTP 请求到达服务器之前，经过了三个代理 Proxy1、Proxy2、Proxy3，IP 分别为 IP1、IP2、IP3，用户真实 IP 为 IP0，那么按照 XFF（X-Forwarded-For） 标准，服务端最终会收到以下信息：
+
+	X-Forwarded-For: IP0, IP1, IP2
+	
+Proxy3 直连服务器，它会给 XFF 追加 IP2，表示它是在帮 Proxy2 转发请求。列表中并没有 IP3，因为Proxy3是与服务器直接建立连接的，服务器端可以直接获取Proxy3的地址。nginx中，这个地址可以通过变量`$remote_addr`获取。
+
+
+
+
+
+
+
+

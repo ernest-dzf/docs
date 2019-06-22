@@ -1,9 +1,10 @@
+[toc]
 # mysql权限 #
 ## all privileges权限 ##
 
-经常看到 all privileges权限，这个all privileges 权限具体有哪些权限呢？
+经常看到 `all privileges` 权限，这个`all privileges` 权限具体有哪些权限呢？
 
-平时创建账号的时候，可以分为两大类，一类是业务系统的账号，基于具体的数据库上面做操作。一类是管理员账号，会涉及到 mysql、information_schema、performance_schema。
+平时创建账号的时候，可以分为两大类，一类是业务系统的账号，基于具体的数据库上面做操作。一类是管理员账号，会涉及到 `mysql`、`information_schema`、`performance_schema`。
 
 ### 创建测试用数据库 ###
 所以创建一个新的数据库，模拟业务数据库。
@@ -159,6 +160,15 @@ mysql中存在4个控制权限的表，分别为**user**表，**db**表，**tabl
 mysql权限表的验证过程为：
 
 1. 先从user表中的Host,User,Password这3个字段中判断连接的ip、用户名、密码是否存在，存在则通过验证
-2. 通过身份认证后，进行权限分配，按照user，db，tables_priv，columns_priv的顺序进行验证。即先检查全局权限表 user，如果user中对应的权限为Y，则此用户对所有数据库的权限都为Y，将不再检查db, tables_priv,columns_priv；如果为N，则到db表中检查此用户对应的具体数据库，并得到db中为Y的权限；如果db中为N，则检 查tables_priv中此数据库对应的具体表，取得表中的权限Y，以此类推
+2. 通过身份认证后，进行权限分配，按照user，db，tables\_priv，columns\_priv的顺序进行验证。即先检查全局权限表 user，如果user中对应的权限为Y，则此用户对所有数据库的权限都为Y，将不再检查db, tables\_priv,columns\_priv；如果为N，则到db表中检查此用户对应的具体数据库，并得到db中为Y的权限；如果db中为N，则检 查tables\_priv中此数据库对应的具体表，取得表中的权限Y，以此类推
 
 ### 具体权限说明 ###
+
+
+
+
+## 实际操作举例
+
+1. 创建用户
+
+

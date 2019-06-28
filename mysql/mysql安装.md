@@ -6,7 +6,7 @@
 1. 官网下载，地址：[https://www.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.25-28/binary/tarball/Percona-Server-5.7.25-28-Linux.x86_64.ssl101.tar.gz](https://www.percona.com/downloads/Percona-Server-5.7/LATEST/binary/tarball/)。
 	
 	这里注意下载版本，官方说法是：
-> 	Percona Server offers multiple tarballs depending on the OpenSSL library available in the distribution:
+	> Percona Server offers multiple tarballs depending on the OpenSSL library available in the distribution:
  
 	> ssl100 - for Debian prior to 9 and Ubuntu prior to 14.04 versions (libssl.so.1.0.0 => /usr/lib/x86_64-linux-gnu/libssl.so.1.0.0 (0x00007f2e389a5000));
 	
@@ -151,6 +151,15 @@
 	可以看到mysqld在3、4、5运行级别下都是on，说明设置成功。
 
 ## mysql5.6安装 ##
+
+准备工作：
+
+	yum install -y autoconf
+	yum -y install numactl.x86_64
+
+由于机器上可能会有`my.cnf`配置文件，所以先将这些删除。可能的路径是`/etc/my.cnf`。
+
+开始安装。
 
 	shell> groupadd mysql
 	shell> useradd -r -g mysql mysql

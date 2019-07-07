@@ -9,7 +9,7 @@
 	> Percona Server offers multiple tarballs depending on the OpenSSL library available in the distribution:
  
 	> ssl100 - for Debian prior to 9 and Ubuntu prior to 14.04 versions (libssl.so.1.0.0 => /usr/lib/x86_64-linux-gnu/libssl.so.1.0.0 (0x00007f2e389a5000));
-	
+		
 	> ssl101 - for CentOS 6 and CentOS 7 (libssl.so.10 => /usr/lib64/libssl.so.10 (0x00007facbe8c4000));
 	
 	> ssl102 - for Debian 9 and Ubuntu versions starting from 14.04 (libssl.so.1.1 => /usr/lib/libssl.so.1.1 (0x00007f5e57397000);
@@ -187,3 +187,15 @@
 9. 加入到service中，重新登录后就可以用`service start mysql`或者`service stop mysql`启停mysql数据库了
 
 其他的诸如加到自启动，环境变量的配置，步骤和mysql5.7安装一样。
+
+
+
+
+## mycli ##
+
+mycli是一个mysql 客户端工具，可以自动补全，高亮，……。
+
+	
+	yum install python-pip python-devel	
+	
+	pip install mycli

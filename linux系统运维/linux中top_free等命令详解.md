@@ -51,7 +51,6 @@
 
   	停止的进程数。进程收到SIGSTOP信号后进入该状态，在收到SIGCONT后又会恢复运行。比如当一个进程可以和用户进行交互时，如果你通过`&`符号，将其放入到后台运行，那么这个进程就是stopped状态，比如`top &`。
 
-	那么如何不需要交互时，但又可以让这些进程在后台进行呢。
 
 - 0 zombie
 
@@ -102,6 +101,129 @@
   4. 2438076k cached
 
     	缓冲的交换区总量
+
+再来看上面截图中，第六行后面的部分。这部分是各个进程占用的资源情况。
+
+- PID		进程号
+- USER		进程创建者
+- PR		进程优先级
+- NI		nice值。越小优先级越高，最小-20，最大19
+
+	>The nice value of the task.  A negative nice value means higher priority, whereas a positive nice value means lower priority.  Zero in this field simply means priority  will
+- VIRT		进程使用的虚拟内存总量
+- RES		进程使用的，未被换出的物理内存大小
+- SHR		共享内存大小
+- S			进程状态
+- %CPU		进程占用CPU百分比
+- %MEM		进程占用内存百分比
+- TIME+		进程运行时间
+- COMMAND	进程名称
+
+上面有几个概念可能比较难理解，解释下。
+
+
+
+**NI和PR**
+
+也就是nice 和 priority。
+
+
+nice 取值范围为[-20, 19]，值越小，优先级越高，静态优先级。
+
+在内核中，进程优先级的取值范围是通过一个宏定义的，这个宏名称是MAX_PRIO，取值为140。
+
+而这个值又是由另外两个值相加组成的，一个是代表nice值取值范围的NICE_WIDTH宏（40），另一个是代表实时进程（realtime）优先级范围的MAX_RT_PRIO宏（100）。
+
+说白了就是，Linux实际上实现了140个优先级范围，取值范围是从0-139，这个值越小，优先级越高。
+
+nice值的-20到19，映射到实际的优先级范围是100-139，这是针对正常的进程来说的（非实时进程）。
+
+	PR = 20 + NI
+
+也就是说，如果nice为0的话，呢么PR就是20（你可以通过top看到，大部分的进程PR都是20），如果nice为-20的话，PR就是0，对于正常的进程来说，PR为0就是优先级最高的了。
+
+这里也可以看到，PR为0的话，对应的就是linux内核中140个优先级[0, 139]的100。
+
+PR = 20 + (-20 to +19) 就是0到39，映射为100到139。优先级100以下的都是rt（real time）进程。
+
+
+如果对于real time 进程，那么
+
+	PR = -1 - rt_prior
+
+其中rt_prior取值为[1, 99]。
+
+当rt_prior为99的时候，PR为-100，对应linux内核中140个优先级[0, 139]的0，优先级最高。
+
+**VIRT**
+
+virtual memory usage。虚拟内存使用？
+
+**包括进程使用的库、代码、数据，以及malloc、new分配的堆空间和分配的栈空间等**。
+
+假如进程新申请10MB的内存，但实际只使用了1MB，那么它会增长10MB，而不是实际的1MB使用量。
+
+我们知道每个进程面对的是一个独立的地址空间，比如进程A面对的地址空间是0x0000~0xFFFF，进程B面对的地址空间也是0x0000~0xFFFF。
+
+但是我们内存条只有一块，那进程A和进程B的地址重复了怎么办？
+
+其实操作系统给我们做了一个映射，可以将进程的虚拟地址映射到内存条的实际地址中去。这样即使进程A和进程B的虚拟地址是一样的，但是实际上在内存条的物理地址是不一样的。具体相关知识可以参考《深入理解计算机操作系统一书》。
+
+那这里VIRT表示的其实是进程占有的一个地址空间，只要是应用程序要求的，就全算在这里，而不管它真的用了没有，也不管有没有实际映射到物理内存中去。
+
+比如你在堆里new了一个大数组，类似这样，`char *p = new char [1024*1024*256]`，那么程序占用的VIRT大概就会是256M。但是RES却很可能没那么大。
+
+	top - 20:00:17 up 13 days, 18:47,  1 user,  load average: 0.15, 0.15, 0.14
+	Tasks:   1 total,   0 running,   1 sleeping,   0 stopped,   0 zombie
+	%Cpu(s):  0.3 us,  0.3 sy,  0.0 ni, 98.7 id,  0.7 wa,  0.0 hi,  0.0 si,  0.0 st
+	%Node0 :  0.3 us,  0.3 sy,  0.0 ni, 98.7 id,  0.7 wa,  0.0 hi,  0.0 si,  0.0 st
+	KiB Mem :  1015564 total,   133224 free,   559352 used,   322988 buff/cache
+	KiB Swap:        0 total,        0 free,        0 used.   298484 avail Mem 
+	
+	  PID USER      PR  NI    VIRT    RES    SHR S %CPU %MEM     TIME+ COMMAND                                                                                                                  
+	22241 root      20   0  274684   1068    900 S  0.0  0.1   0:00.00 a.out           
+
+测试代码是：
+
+
+	#include <iostream>
+	#include <stdio.h>
+	int main()
+	{
+	        char *p = new char[1024*1024*256];
+	        getchar();
+	        return 0;
+	}
+
+可以看到，我们new了一个256M（268435456字节）大小的数组。top命令查看得到的占用VIRT的空间是274684KiB（281276416字节），
+
+
+**RES**
+
+进程当前使用的内存大小，包括**使用中**的malloc、new分配的堆空间和分配的栈空间，但不包括swap out量。
+
+包含其他进程的共享。
+
+如果申请10MB的内存，实际使用1MB，它只增长1MB，与VIRT相反。
+
+关于库占用内存的情况，它只统计加载的库文件所占内存大小。
+
+
+
+**SHR**
+
+
+>The amount of shared memory used by a task. It simply reflects memory that could be potentially shared with other processes. 
+
+共享内存。
+
+除了自身进程的共享内存，也包括其他进程的共享内存。
+
+虽然进程只使用了几个共享库的函数，但它包含了整个共享库的大小。
+
+计算某个进程所占的物理内存大小公式：RES – SHR。
+
+swap out后，它将会降下来
 
 
 
@@ -173,92 +295,7 @@ top 命令后，按键盘`1`，可以得到各个cpu的使用情况，如下：
 	Steal 值比较高的话，你需要向主机供应商申请扩容虚拟机。服务器上的另一个虚拟机可能拥有更大更多的 CPU 时间片，你可能需要申请升级以与之竞争。另外，高 steal 值可能意味着主机供应商在服务器上过量地出售虚拟机。如果升级了虚拟机， steal 值还是不降的话，你应该寻找另一家服务供应商。
 
 
-再来看上面截图中，第六行后面的部分。这部分是各个进程占用的资源情况。
 
-- PID		进程号
-- USER		进程创建者
-- PR		进程优先级
-- NI		nice值。越小优先级越高，最小-20，最大20
-- VIRT		进程使用的虚拟内存总量
-- RES		进程使用的，未被换出的物理内存大小
-- SHR		共享内存大小
-- S			进程状态
-- %CPU		进程占用CPU百分比
-- %MEM		进程占用内存百分比
-- TIME+		进程运行时间
-- COMMAND	进程名称
-
-上面有几个概念可能比较难理解，解释下。
-
-**VIRT**
-
-virtual memory usage。虚拟内存使用？
-
-**包括进程使用的库、代码、数据，以及malloc、new分配的堆空间和分配的栈空间等**。
-
-假如进程新申请10MB的内存，但实际只使用了1MB，那么它会增长10MB，而不是实际的1MB使用量。
-
-我们知道每个进程面对的是一个独立的地址空间，比如进程A面对的地址空间是0x0000~0xFFFF，进程B面对的地址空间也是0x0000~0xFFFF。
-
-但是我们内存条只有一块，那进程A和进程B的地址重复了怎么办？
-
-其实操作系统给我们做了一个映射，可以将进程的虚拟地址映射到内存条的实际地址中去。这样即使进程A和进程B的虚拟地址是一样的，但是实际上在内存条的物理地址是不一样的。具体相关知识可以参考《深入理解计算机操作系统一书》。
-
-那这里VIRT表示的其实是进程占有的一个地址空间，只要是应用程序要求的，就全算在这里，而不管它真的用了没有，也不管有没有实际映射到物理内存中去。
-
-比如你在堆里new了一个大数组，类似这样，`char *p = new char [1024*1024*256]`，那么程序占用的VIRT大概就会是256M。但是RES却很可能没那么大。
-
-	top - 20:00:17 up 13 days, 18:47,  1 user,  load average: 0.15, 0.15, 0.14
-	Tasks:   1 total,   0 running,   1 sleeping,   0 stopped,   0 zombie
-	%Cpu(s):  0.3 us,  0.3 sy,  0.0 ni, 98.7 id,  0.7 wa,  0.0 hi,  0.0 si,  0.0 st
-	%Node0 :  0.3 us,  0.3 sy,  0.0 ni, 98.7 id,  0.7 wa,  0.0 hi,  0.0 si,  0.0 st
-	KiB Mem :  1015564 total,   133224 free,   559352 used,   322988 buff/cache
-	KiB Swap:        0 total,        0 free,        0 used.   298484 avail Mem 
-	
-	  PID USER      PR  NI    VIRT    RES    SHR S %CPU %MEM     TIME+ COMMAND                                                                                                                  
-	22241 root      20   0  274684   1068    900 S  0.0  0.1   0:00.00 a.out           
-
-测试代码是：
-
-
-	#include <iostream>
-	#include <stdio.h>
-	int main()
-	{
-	        char *p = new char[1024*1024*256];
-	        getchar();
-	        return 0;
-	}
-
-可以看到，我们new了一个256M（268435456字节）大小的数组。top命令查看得到的占用VIRT的空间是274684KiB（281276416字节），
-
-
-**RES**
-
-进程当前使用的内存大小，包括**使用中**的malloc、new分配的堆空间和分配的栈空间，但不包括swap out量。
-
-包含其他进程的共享。
-
-如果申请10MB的内存，实际使用1MB，它只增长1MB，与VIRT相反。
-
-关于库占用内存的情况，它只统计加载的库文件所占内存大小。
-
-
-
-**SHR**
-
-
->The amount of shared memory used by a task. It simply reflects memory that could be potentially shared with other processes. 
-
-共享内存。
-
-除了自身进程的共享内存，也包括其他进程的共享内存。
-
-虽然进程只使用了几个共享库的函数，但它包含了整个共享库的大小。
-
-计算某个进程所占的物理内存大小公式：RES – SHR。
-
-swap out后，它将会降下来
 
 ## free 命令 ##
 
@@ -352,6 +389,10 @@ Cache（缓存）则是系统两端处理速度不匹配时的一种折衷策略
 下面解释一下各数值的含义。
 
 
+计算cpu使用率，[km文章](http://km.oa.com/group/568/articles/show/197164)。
+
 
 ## linxu 计算io使用率 ##
 
+
+采集指标，[这里](http://km.oa.com/group/568/articles/show/197149)。

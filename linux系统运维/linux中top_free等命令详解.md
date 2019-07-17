@@ -9,89 +9,101 @@
 前五行是系统整体的统计信息。第一行是任务队列信息，同 uptime 命令的执行结果。其内容如下：
 
 - 17：10：04
-
-  表示当前时间
+	
+	表示当前时间
 
 - up 255 days, 6:24
 
-  系统运行时间，表示运行了255天6小时24分
+	系统运行时间，表示运行了255天6小时24分
 
 - 13 users
 
-  当前登录用户数
+	当前登录用户数
 
 - load average:0.06,0.08.0.14
 
-  系统负载
+	系统负载
 
 - Tasks: 206 total
 
-  进程总数
+	进程总数
 
 - 1 running
 
-  正在运行的进程数目
+	正在运行的进程数目
 
 - 205 sleeping
 
-  睡眠的进程数（A sleeping process may be waiting on something -- input/output, a child process to return, etc.）。
+	睡眠的进程数（A sleeping process may be waiting on something -- input/output, a child process to return, etc.）。
 
-  关于sleeping process，引用一段话解释：
-
-
-  > Suppose a process starts: it gets loaded into memory, so some memory has to be allocated to it. It also gets some processor time, otherwise it would lurk just there, unable to run. Now it starts and probably it will need some additional memory to hold runtime data, it might need other OS resources, like files to be opened, network connections to be established, etc., etc..
+  	关于sleeping process，引用一段话解释：
 
 
-  > All these requests involve the OS, which may or may not be able to fulfill these immediately. If it is, the process gets what it requests, but if not it will be put to sleep until the OS can provide. That it is put to sleep does not mean it has nothing to do or that it could be stopped. This is just a way for the OS to do something else until it can provide everything necessary to run the process.
+  	> Suppose a process starts: it gets loaded into memory, so some memory has to be allocated to it. It also gets some processor time, otherwise it would lurk just there, unable to run. Now it starts and probably it will need some additional memory to hold runtime data, it might need other OS resources, like files to be opened, network connections to be established, etc., etc..
 
 
-  > Another possiblity is that the process waits for a certain event: suppose the process services a certain network event: it will listen to the network and until a certain signal comes it has nothing to do - therefore it is going to sleep. When the signal comes, it wakes up, does whatever it is supposed to do, then goes back to sleep again. If you stop the process because it sleeps it will not be able to wake up once the signal comes.
+  	> All these requests involve the OS, which may or may not be able to fulfill these immediately. If it is, the process gets what it requests, but if not it will be put to sleep until the OS can provide. That it is put to sleep does not mean it has nothing to do or that it could be stopped. This is just a way for the OS to do something else until it can provide everything necessary to run the process.
+
+
+  	> Another possiblity is that the process waits for a certain event: suppose the process services a certain network event: it will listen to the network and until a certain signal comes it has nothing to do - therefore it is going to sleep. When the signal comes, it wakes up, does whatever it is supposed to do, then goes back to sleep again. If you stop the process because it sleeps it will not be able to wake up once the signal comes.
 
 - 0 stopped
 
-  停止的进程数
+  	停止的进程数。进程收到SIGSTOP信号后进入该状态，在收到SIGCONT后又会恢复运行。比如当一个进程可以和用户进行交互时，如果你通过`&`符号，将其放入到后台运行，那么这个进程就是stopped状态，比如`top &`。
+
+	那么如何不需要交互时，但又可以让这些进程在后台进行呢。
 
 - 0 zombie
 
-  僵尸进程数
+  	僵尸进程数。
+
+	一个进程在调用exit命令结束自己生命的时候，其实它并没有真正地被销毁，而是留下一个称为僵尸进程（Zombie）的数据结构（系统调用exit， 它的作用是使进程退出，但也仅仅限于将一个正常的进程变成一个僵尸进程，并不能将其完全销毁）。
+
+	在Linux进程的状态中，僵尸进程是非常特殊的一种，它已经放弃了几乎所有内存空间，没有任何可执行代码，也不能被调度，仅仅在进程列表中保留一个位置，记录该进程的退出状态等信息供其他进程收集，除此之外，僵尸进程不再占有任何内存空间。
+
+	它需要它的父进程来为它收尸，如果他的父进程没安装SIGCHLD信号处理函数，调用wait或waitpid()等待子进程结束，又没有显式忽略该信号，那么它就一直保持僵尸状态，如果这时父进程结束了，那么init进程自动会接手这个子进程，为它收尸，它还是能被清除的。
+
+	但是如果如果父进程是一个循环，不会结束，那么子进程就会一直保持僵尸状态，这就是为什么系统中有时会有很多的僵尸进程。
 
 - Cpu(s):0.6%us,...,0.0%st
 
-  关于us，sy，……，参见后面的解释
+  	关于us，sy，……，参见后面的解释
 
 - Mem: 8046144k total,...,369348k buffers
   1. 8046144k total
 
-     物理内存的总量
+     	物理内存的总量
 
   2. 4442124k used
 
-     使用的物理内存总量
+     	使用的物理内存总量
 
   3. 3604020k free
 
-     空闲内存总量
+     	空闲内存总量
 
   4. 369348k buffers
 
-     用作内核缓存的内存量
+     	用作内核缓存的内存量
 
 - Swap: 2097148k,...,2438076k cached
   1. 2097148k total
 
-     交换区总量
+     	交换区总量
 
   2. 194804k used
 
-     使用的交换区总量
+     	使用的交换区总量
 
   3. 1902344k free
 
-     空闲交换区总量
+     	空闲交换区总量
 
   4. 2438076k cached
 
-     缓冲的交换区总量
+    	缓冲的交换区总量
+
+
 
 top 命令后，按键盘`1`，可以得到各个cpu的使用情况，如下：
 
@@ -134,32 +146,119 @@ top 命令后，按键盘`1`，可以得到各个cpu的使用情况，如下：
 
 - us
 
-  用户空间占用CPU百分比（仅包括未改变优先级的）
+	用户空间占用CPU百分比（仅包括未改变优先级的）
 - sy
 
-  内核空间占用CPU百分比
+	内核空间占用CPU百分比
 - ni
 
-  用户进程空间内改变过优先级的进程占用CPU百分比
+	用户进程空间内改变过优先级的进程占用CPU百分比
 - id
 
-  空闲CPU百分比
+	空闲CPU百分比
 - wa
 
-  IO等待所占用的CPU时间的百分比
+	IO等待所占用的CPU时间的百分比
 - hi
 
-  CPU服务于硬中断所耗费的时间总额
+	CPU服务于硬中断所耗费的时间总额
 - si
 
-  CPU服务于软中断所耗费的时间总额
+	CPU服务于软中断所耗费的时间总额
 
 - st
 
-  hypervisor（一种运行在物理服务器和操作系统之间的中间软件层，可允许多个操作系统和应用共享一套基础物理硬件）从当前虚拟机偷走的cpu时间。这个指标是针对虚拟机的。
+	hypervisor（一种运行在物理服务器和操作系统之间的中间软件层，可允许多个操作系统和应用共享一套基础物理硬件）从当前虚拟机偷走的cpu时间。这个指标是针对虚拟机的。
 
-  Steal 值比较高的话，你需要向主机供应商申请扩容虚拟机。服务器上的另一个虚拟机可能拥有更大更多的 CPU 时间片，你可能需要申请升级以与之竞争。另外，高 steal 值可能意味着主机供应商在服务器上过量地出售虚拟机。如果升级了虚拟机， steal 值还是不降的话，你应该寻找另一家服务供应商。
+	Steal 值比较高的话，你需要向主机供应商申请扩容虚拟机。服务器上的另一个虚拟机可能拥有更大更多的 CPU 时间片，你可能需要申请升级以与之竞争。另外，高 steal 值可能意味着主机供应商在服务器上过量地出售虚拟机。如果升级了虚拟机， steal 值还是不降的话，你应该寻找另一家服务供应商。
 
+
+再来看上面截图中，第六行后面的部分。这部分是各个进程占用的资源情况。
+
+- PID		进程号
+- USER		进程创建者
+- PR		进程优先级
+- NI		nice值。越小优先级越高，最小-20，最大20
+- VIRT		进程使用的虚拟内存总量
+- RES		进程使用的，未被换出的物理内存大小
+- SHR		共享内存大小
+- S			进程状态
+- %CPU		进程占用CPU百分比
+- %MEM		进程占用内存百分比
+- TIME+		进程运行时间
+- COMMAND	进程名称
+
+上面有几个概念可能比较难理解，解释下。
+
+**VIRT**
+
+virtual memory usage。虚拟内存使用？
+
+**包括进程使用的库、代码、数据，以及malloc、new分配的堆空间和分配的栈空间等**。
+
+假如进程新申请10MB的内存，但实际只使用了1MB，那么它会增长10MB，而不是实际的1MB使用量。
+
+我们知道每个进程面对的是一个独立的地址空间，比如进程A面对的地址空间是0x0000~0xFFFF，进程B面对的地址空间也是0x0000~0xFFFF。
+
+但是我们内存条只有一块，那进程A和进程B的地址重复了怎么办？
+
+其实操作系统给我们做了一个映射，可以将进程的虚拟地址映射到内存条的实际地址中去。这样即使进程A和进程B的虚拟地址是一样的，但是实际上在内存条的物理地址是不一样的。具体相关知识可以参考《深入理解计算机操作系统一书》。
+
+那这里VIRT表示的其实是进程占有的一个地址空间，只要是应用程序要求的，就全算在这里，而不管它真的用了没有，也不管有没有实际映射到物理内存中去。
+
+比如你在堆里new了一个大数组，类似这样，`char *p = new char [1024*1024*256]`，那么程序占用的VIRT大概就会是256M。但是RES却很可能没那么大。
+
+	top - 20:00:17 up 13 days, 18:47,  1 user,  load average: 0.15, 0.15, 0.14
+	Tasks:   1 total,   0 running,   1 sleeping,   0 stopped,   0 zombie
+	%Cpu(s):  0.3 us,  0.3 sy,  0.0 ni, 98.7 id,  0.7 wa,  0.0 hi,  0.0 si,  0.0 st
+	%Node0 :  0.3 us,  0.3 sy,  0.0 ni, 98.7 id,  0.7 wa,  0.0 hi,  0.0 si,  0.0 st
+	KiB Mem :  1015564 total,   133224 free,   559352 used,   322988 buff/cache
+	KiB Swap:        0 total,        0 free,        0 used.   298484 avail Mem 
+	
+	  PID USER      PR  NI    VIRT    RES    SHR S %CPU %MEM     TIME+ COMMAND                                                                                                                  
+	22241 root      20   0  274684   1068    900 S  0.0  0.1   0:00.00 a.out           
+
+测试代码是：
+
+
+	#include <iostream>
+	#include <stdio.h>
+	int main()
+	{
+	        char *p = new char[1024*1024*256];
+	        getchar();
+	        return 0;
+	}
+
+可以看到，我们new了一个256M（268435456字节）大小的数组。top命令查看得到的占用VIRT的空间是274684KiB（281276416字节），
+
+
+**RES**
+
+进程当前使用的内存大小，包括**使用中**的malloc、new分配的堆空间和分配的栈空间，但不包括swap out量。
+
+包含其他进程的共享。
+
+如果申请10MB的内存，实际使用1MB，它只增长1MB，与VIRT相反。
+
+关于库占用内存的情况，它只统计加载的库文件所占内存大小。
+
+
+
+**SHR**
+
+
+>The amount of shared memory used by a task. It simply reflects memory that could be potentially shared with other processes. 
+
+共享内存。
+
+除了自身进程的共享内存，也包括其他进程的共享内存。
+
+虽然进程只使用了几个共享库的函数，但它包含了整个共享库的大小。
+
+计算某个进程所占的物理内存大小公式：RES – SHR。
+
+swap out后，它将会降下来
 
 ## free 命令 ##
 
@@ -214,10 +313,14 @@ free 命令用于查看当前系统的内存使用情况。
 
 两者都是RAM中的数据。简单来说，buffer是即将要被写入磁盘的，cache是被从磁盘中读出来的。
 
-buffer是由各种进程分配的，被用在如输入队列等方面，一个简单的例子如某个进程要求有多个字段读入，在所有字段被读入完整之前，进程把先前读入的字段放在buffer中保存。
+buffer是由各种进程分配的，被用在如输入队列等方面。一个简单的例子，如某个进程要求有多个字段被读入，在所有字段被读入完整之前，进程把先前读入的字段放在buffer中保存。
 
-cache经常被用在磁盘的I/O请求上，如果有多个进程都要访问某个文件，于是该文件便被做成cache以方便下次被访问，这样可提供系统性能。
+cache经常被用在磁盘的I/O请求上，如果有多个进程都要访问某个文件，于是该文件便被做成cache以方便下次被访问，这样可提高系统性能。
 
+
+Buffer（缓冲区）是系统两端处理速度平衡（从长时间尺度上看）时使用的。它的引入是为了减小短期内突发I/O的影响，起到流量整形的作用。比如生产者——消费者问题，他们产生和消耗资源的速度大体接近，加一个buffer可以抵消掉资源刚产生/消耗时的突然变化。
+
+Cache（缓存）则是系统两端处理速度不匹配时的一种折衷策略。因为CPU和memory之间的速度差异越来越大，所以人们充分利用数据的局部性（locality）特征，通过使用存储系统分级（memory hierarchy）的策略来减小这种差异带来的影响。
 ## linux计算cpu使用率 ##
 
 计算cpu使用率可以使用`/proc/stat`。
@@ -249,4 +352,6 @@ cache经常被用在磁盘的I/O请求上，如果有多个进程都要访问某
 下面解释一下各数值的含义。
 
 
+
+## linxu 计算io使用率 ##
 

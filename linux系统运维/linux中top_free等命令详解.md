@@ -328,7 +328,11 @@ top 命令后，按键盘`1`，可以得到各个cpu的使用情况，如下：
 
 	进入top界面后，`shift + <`或者`shift + >`。左移或者右移排序列。一般会和该表调色板（按z）一起配合使用。
 	
-	我一般也会按b，调整下是黑体还是反色显示排序的列。
+	我一般也会按b，调整下是黑体还是反色显示排序的列。效果类似下面这样，
+	
+	
+	![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/top_sort.png)
+		
 	
 9. 反向排序
 

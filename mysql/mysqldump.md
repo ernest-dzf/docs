@@ -2,7 +2,7 @@
 
 ## 命令 ##
 
-`mysqldump -h主机名 -P端口 -u用户名 -p密码 --database 数据库名 > 文件名.sql`
+`mysqldump -h主机名 -P端口 -u用户名 -p密码 --databases 数据库名 > 文件名.sql`
 
 
 ## --master-data ##

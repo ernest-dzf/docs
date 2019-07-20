@@ -200,6 +200,10 @@ virtual memory usage。虚拟内存使用？
 可以看到，我们new了一个256M（268435456字节）大小的数组。top命令查看得到的占用VIRT的空间是274684KiB（281276416字节），
 
 
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/virt.png)
+
+但是实际的res占用并不高。
+
 **RES**
 
 进程当前使用的内存大小，包括**使用中**的malloc、new分配的堆空间和分配的栈空间，但不包括swap out量。

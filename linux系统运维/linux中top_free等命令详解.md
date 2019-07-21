@@ -444,6 +444,7 @@ Cache（缓存）则是系统两端处理速度不匹配时的一种折衷策略
 - softirq(131492)，从系统启动开始累计到当前时刻，处理软中断的时间。
 - steal(0)，在虚拟环境下 CPU 花在处理其他作业系统的时间，Linux 2.6.11 开始才开始支持。
 - guest(0)，在 Linux 内核控制下 CPU 为 guest 作业系统运行虚拟 CPU 的时间，Linux 2.6.24 开始才开始支持。
+- guest_nice(0)（since Linux 2.6.33），Time spent running a niced guest (virtual CPU for guest operating systems under the control of the Linux kernel).
 
 **网络上很多关于nice的解释是错的，将其解释为，nice值为负的进程所占用的CPU时间。**
 
@@ -577,12 +578,30 @@ Cache（缓存）则是系统两端处理速度不匹配时的一种折衷策略
 	}
 	[root@victor2 ~]# 
 	[root@victor2 ~]# nice -n 1 ./a.out
-	
-通过top看cpu占用率，如下，
 
+`a.out`是`test.cpp`编译产物，`nice -n 1 ./a.out`表示调整`a.out`运行nice值为1。
+
+通过top看cpu占用率，如下，
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/nice_1.png)
+
+可以发现ni为99.7。
 
 如果我们这样呢，
 
+	[root@victor2 ~]# nice -n -1 ./a.out   
+	
+top查看cpu利用率，
+
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/nice_2.png)
+
+可以发现ni还是为0，但是us是99.7。
+
+验证得到的结果就是。
+
+1. ni表示的是运行时，通过nice命令调整了nice值>0的进程所用的时间。
+
+	>The ni stat shows how much time the CPU spent running user space processes that have been niced. On a system where no processes have been niced then the number will be 0.
+2. us表示的是用户空间进程所花时间（不包括1中所花时间）
 
 
 计算cpu使用率，[km文章](http://km.oa.com/group/568/articles/show/197164)。

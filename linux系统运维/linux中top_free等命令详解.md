@@ -332,6 +332,8 @@ top 命令后，按键盘`1`，可以得到各个cpu的使用情况，如下：
 
 	进入top界面后，`shift + <`或者`shift + >`。左移或者右移排序列。一般会和该表调色板（按z）一起配合使用。
 	
+	进入top界面后，按x，以field进行展示。
+	
 	我一般也会按b，调整下是黑体还是反色显示排序的列。效果类似下面这样，
 	
 	
@@ -432,6 +434,155 @@ Cache（缓存）则是系统两端处理速度不匹配时的一种折衷策略
 上面数值的所有单位都是jiffies，jiffies是内核中的一个全局变量，用来记录自系统启动一来产生的节拍数，在linux中，一个节拍大致可理解为操作系统进程调度的最小时间片，不同linux内核可能值有不同，通常在1ms到10ms之间。
 
 下面解释一下各数值的含义。
+
+- user(19185968)，从系统启动开始累计到当前时刻，用户态的CPU时间（单位：jiffies） 。
+- nice(82)，从系统启动开始累计到当前时刻，低优先级程序所占用的用户态的CPU时间（单位：jiffies）。
+- system(6873228)，从系统启动开始累计到当前时刻，内核态时间。
+- idle(936299176)，从系统启动开始累计到当前时刻，除硬盘IO等待时间以外其它空闲时间。
+- iowait(206814)，从系统启动开始累计到当前时刻，等待io响应的时间。
+- irq(42)，从系统启动开始累计到当前时刻，处理硬中断的时间。
+- softirq(131492)，从系统启动开始累计到当前时刻，处理软中断的时间。
+- steal(0)，在虚拟环境下 CPU 花在处理其他作业系统的时间，Linux 2.6.11 开始才开始支持。
+- guest(0)，在 Linux 内核控制下 CPU 为 guest 作业系统运行虚拟 CPU 的时间，Linux 2.6.24 开始才开始支持。
+
+**网络上很多关于nice的解释是错的，将其解释为，nice值为负的进程所占用的CPU时间。**
+
+**对user的解释也有问题，	解释为用户态的CPU时间（单位：jiffies），不包含nice值为负进程。**
+
+其实，我们看下官方的文档就知道了（出处：[http://man7.org/linux/man-pages/man5/proc.5.html](http://man7.org/linux/man-pages/man5/proc.5.html)）
+
+	/proc/stat
+      kernel/system statistics.  Varies with architecture.  Common
+      entries include:
+
+      cpu 10132153 290696 3084719 46828483 16683 0 25195 0 175628 0
+      cpu0 1393280 32966 572056 13343292 6130 0 17875 0 23933 0
+             The amount of time, measured in units of USER_HZ
+             (1/100ths of a second on most architectures, use
+             sysconf(_SC_CLK_TCK) to obtain the right value), that
+             the system ("cpu" line) or the specific CPU ("cpuN"
+             line) spent in various states:
+
+             user   (1) Time spent in user mode.
+
+             nice   (2) Time spent in user mode with low priority
+                    (nice).
+
+             system (3) Time spent in system mode.
+
+             idle   (4) Time spent in the idle task.  This value
+                    should be USER_HZ times the second entry in the
+                    /proc/uptime pseudo-file.
+
+             iowait (since Linux 2.5.41)
+                    (5) Time waiting for I/O to complete.  This
+                    value is not reliable, for the following rea‐
+                    sons:
+
+                    1. The CPU will not wait for I/O to complete;
+                       iowait is the time that a task is waiting for
+                       I/O to complete.  When a CPU goes into idle
+                       state for outstanding task I/O, another task
+                       will be scheduled on this CPU.
+
+                    2. On a multi-core CPU, the task waiting for I/O
+                       to complete is not running on any CPU, so the
+                       iowait of each CPU is difficult to calculate.
+
+                    3. The value in this field may decrease in cer‐
+                       tain conditions.
+
+             irq (since Linux 2.6.0)
+                    (6) Time servicing interrupts.
+
+             softirq (since Linux 2.6.0
+                    (7) Time servicing softirqs.
+
+             steal (since Linux 2.6.11)
+                    (8) Stolen time, which is the time spent in
+                    other operating systems when running in a virtu‐
+                    alized environment
+
+             guest (since Linux 2.6.24)
+                    (9) Time spent running a virtual CPU for guest
+                    operating systems under the control of the Linux
+                    kernel.
+
+             guest_nice (since Linux 2.6.33)
+                    (10) Time spent running a niced guest (virtual
+                    CPU for guest operating systems under the con‐
+                    trol of the Linux kernel).
+
+      page 5741 1808
+             The number of pages the system paged in and the number
+             that were paged out (from disk).
+
+      swap 1 0
+             The number of swap pages that have been brought in and
+             out.
+
+      intr 1462898
+             This line shows counts of interrupts serviced since
+             boot time, for each of the possible system interrupts.
+             The first column is the total of all interrupts ser‐
+             viced including unnumbered architecture specific inter‐
+             rupts; each subsequent column is the total for that
+             particular numbered interrupt.  Unnumbered interrupts
+             are not shown, only summed into the total.
+
+      disk_io: (2,0):(31,30,5764,1,2) (3,0):...
+             (major,disk_idx):(noinfo, read_io_ops, blks_read,
+             write_io_ops, blks_written)
+             (Linux 2.4 only)
+
+      ctxt 115315
+             The number of context switches that the system under‐
+             went.
+
+      btime 769041601
+             boot time, in seconds since the Epoch, 1970-01-01
+             00:00:00 +0000 (UTC).
+
+      processes 86031
+             Number of forks since boot.
+
+      procs_running 6
+             Number of processes in runnable state.  (Linux 2.5.45
+             onward.)
+
+      procs_blocked 2
+             Number of processes blocked waiting for I/O to com‐
+             plete.  (Linux 2.5.45 onward.)
+
+      softirq 229245889 94 60001584 13619 5175704 2471304 28 51212741 59130143 0 51240672
+             This line shows the number of softirq for all CPUs.
+             The first column is the total of all softirqs and each
+             subsequent column is the total for particular softirq.
+             (Linux 2.6.31 onward.)
+
+
+上面文档可以看出，`nice`的含义是低优先级的process所花的时间，低优先级其实应该是nice为正的进程。
+
+`user`的含义是不包括低优先级的process运行时间的用户进程的时间。
+
+我们也可以验证下。
+
+	[root@victor2 ~]# cat test.cpp 
+	#include <iostream>
+	#include <stdio.h>
+	int main()
+	{
+	        while(1);
+	        return 0;
+	}
+	[root@victor2 ~]# 
+	[root@victor2 ~]# nice -n 1 ./a.out
+	
+通过top看cpu占用率，如下，
+
+
+如果我们这样呢，
+
 
 
 计算cpu使用率，[km文章](http://km.oa.com/group/568/articles/show/197164)。

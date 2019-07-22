@@ -604,7 +604,43 @@ top查看cpu利用率，
 2. us表示的是用户空间进程所花时间（不包括1中所花时间）
 
 
-计算cpu使用率，[km文章](http://km.oa.com/group/568/articles/show/197164)。
+github上一个简单的计算cpu使用率的shell脚本，[这里](https://github.com/pcolby/scripts/blob/master/cpu.sh)。
+
+也有使用c代码实现计算cpu使用率的，[这里](https://github.com/scaidermern/top-processes/blob/master/top_proc.c)。
+
+### 计算某个进程的cpu使用率 ###
+
+我们可以通过读取`/proce/[pid]/stat`文件里面的内容，来计算某个进程的cpu使用率。
+
+	[root@victor2 ~]# cat /proc/18069/stat
+	18069 (a.out) R 17945 18069 17945 34816 18069 4202496 338 0 0 0 41112 7 0 0 20 0 1 0 164339492 12832768 206 18
+	446744073709551615 4194304 4196508 140730399340208 140730399335608 4195889 0 0 0 0 0 0 0 17 0 0 0 0 0 0 629500
+	0 6295612 33730560 140730399348743 140730399348751 140730399348751 140730399350768 0
+	[root@victor2 ~]# 
+
+- pid  %d (18069)
+- comm  %s (a.out)
+- state  %c (R)
+- ppid  %d (17945)
+- pgrp  %d (18069)
+
+	The process group ID of the process.
+	
+- session  %d (17945)
+
+	The session ID of the process.
+	
+	
+- tty_nr  %d (34816)
+
+- minflt  %lu (18069)
+
+- cminflt  %lu (4202496)
+
+- majflt  %lu (338)
+
+- cmajflt  %lu (0)
+
 
 
 ## linxu 计算io使用率 ##

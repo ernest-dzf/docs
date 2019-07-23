@@ -285,7 +285,7 @@ top 命令后，按键盘`1`，可以得到各个cpu的使用情况，如下：
 	空闲CPU百分比
 - wa
 
-	IO等待所占用的CPU时间的百分比
+	IO等待所占用的CPU时间的百分比（io等待，cpu不应该是空闲状态么？）
 - hi
 
 	CPU服务于硬中断所耗费的时间总额
@@ -439,7 +439,35 @@ Cache（缓存）则是系统两端处理速度不匹配时的一种折衷策略
 - nice(82)，从系统启动开始累计到当前时刻，低优先级程序所占用的用户态的CPU时间（单位：jiffies）。
 - system(6873228)，从系统启动开始累计到当前时刻，内核态时间。
 - idle(936299176)，从系统启动开始累计到当前时刻，除硬盘IO等待时间以外其它空闲时间。
+
+	这里说**除硬盘IO等待时间以外其它空闲时间**，是因为有可能在等io的时候，cpu被调度去干其他事情了
 - iowait(206814)，从系统启动开始累计到当前时刻，等待io响应的时间。
+
+	这里等待io响应的时间是这样定义的：**CPU空闲、并且有仍未完成的I/O请求**。
+	
+	**大白话就是cpu闲着啥事不干等io完成的时间**。
+	
+	假如说cpu很忙，进程A在做io，cpu很可能就被调度走去干其他事情了。那进程A做io的这段时间，是不会算进到iowait里面去的。
+	
+	再比如，在CPU繁忙期间发生的I/O，无论IO是多还是少，%iowait都不会变；当CPU繁忙程度下降时，有一部分IO落入CPU空闲时间段内，导致%iowait升高。
+	
+	IO的并发度低，%iowait就高；IO的并发度高，%iowait可能就比较低。
+	
+	我们可以这样认为，当系统的cpu占用率不高，cpu很空闲时，如果%iowait升高，有进程在做大io操作，cpu都在等io。
+	
+	可见%iowait是一个非常模糊的指标，如果看到 %iowait 升高，还需检查I/O量有没有明显增加，avserv/avwait/avque等指标有没有明显增大，应用有没有感觉变慢，如果都没有，就没什么好担心的。
+	
+	我们验证下：
+	
+		[root@victor2 ~]# dd if=/dev/zero of=test.dbf bs=8k count=3000000
+	
+	先利用dd命令做大io操作。top查看iowait确实很高。
+	
+	然后我们再执行一个死循环进程`a.out`。
+		[root@victor2 ~]# ./a.out 
+		
+	再看一下top，发现iowait降低几乎为0了。
+	
 - irq(42)，从系统启动开始累计到当前时刻，处理硬中断的时间。
 - softirq(131492)，从系统启动开始累计到当前时刻，处理软中断的时间。
 - steal(0)，在虚拟环境下 CPU 花在处理其他作业系统的时间，Linux 2.6.11 开始才开始支持。
@@ -621,8 +649,12 @@ github上一个简单的计算cpu使用率的shell脚本，[这里](https://gith
 - pid  %d (18069)
 - comm  %s (a.out)
 - state  %c (R)
+
+	进程状态。R表示running状态。
 - ppid  %d (17945)
 - pgrp  %d (18069)
+
+	进程组。
 
 	The process group ID of the process.
 	
@@ -632,6 +664,8 @@ github上一个简单的计算cpu使用率的shell脚本，[这里](https://gith
 	
 	
 - tty_nr  %d (34816)
+- tpgid  %d
+- flags  %u
 
 - minflt  %lu (18069)
 
@@ -640,7 +674,26 @@ github上一个简单的计算cpu使用率的shell脚本，[这里](https://gith
 - majflt  %lu (338)
 
 - cmajflt  %lu (0)
+- utime %lu
 
+	>Amount of time that this process has been scheduled in user mode, measured in clock ticks (divide by sysconf(_SC_CLK_TCK)).  This includes guest time, guest\_time (time spent running a virtual CPU, see below), so that applications that are not aware of the guest time field do not lose that time from their calculations.
+	
+	该任务在用户态运行的时间，单位为jiffies。
+	
+- stime  %lu
+	>Amount of time that this process has been scheduled in kernel mode, measured in clock ticks (divide by sysconf(_SC_CLK_TCK)).
+	
+	该任务在核心态运行的时间，单位为jiffies
+	
+	
+- cutime  %ld
+- cstime  %ld
+- priority  %ld
+- nice  %ld
+- num_threads  %ld
+- itrealvalue  %ld
+- starttime  %llu
+- vsize  %lu
 
 
 ## linxu 计算io使用率 ##

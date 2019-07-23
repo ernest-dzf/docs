@@ -1,4 +1,5 @@
-# 一些查看当前机器资源使用情况的linux命令 #
+[toc]
+# top命令引申出来的很多东西 #
 ## top命令 ##
 
 在linux机器上执行`top`命令可以看到cpu利用率的数据。
@@ -6,7 +7,7 @@
 ![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/top_cmd.png)
 
 
-前五行是系统整体的统计信息。第一行是任务队列信息，同 `uptime` 命令的执行结果。其内容如下：
+前五行是系统整体的统计信息。第一行是任务队列信息。其内容如下：
 
 - 17：10：04
 	
@@ -102,7 +103,7 @@
 
   4. 2438076k cached
 
-    	缓冲的交换区总量
+    	缓冲的交换区总量（？？？？）
 
 再来看上面截图中，第六行后面的部分。这部分是各个进程占用的资源情况。
 
@@ -285,7 +286,7 @@ top 命令后，按键盘`1`，可以得到各个cpu的使用情况，如下：
 	空闲CPU百分比
 - wa
 
-	IO等待所占用的CPU时间的百分比（io等待，cpu不应该是空闲状态么？）
+	IO等待所占用的CPU时间的百分比（后面有详细解释）
 - hi
 
 	CPU服务于硬中断所耗费的时间总额
@@ -463,10 +464,17 @@ Cache（缓存）则是系统两端处理速度不匹配时的一种折衷策略
 	
 	先利用dd命令做大io操作。top查看iowait确实很高。
 	
+	![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/iowait_1.png)
+	
 	然后我们再执行一个死循环进程`a.out`。
+	
 		[root@victor2 ~]# ./a.out 
 		
 	再看一下top，发现iowait降低几乎为0了。
+	
+	![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/iowait_2.png)
+	
+	其实这时候系统的io还是很高的，如果我们光凭iowait的值来判断系统io负载，这时候就出错了。
 	
 - irq(42)，从系统启动开始累计到当前时刻，处理硬中断的时间。
 - softirq(131492)，从系统启动开始累计到当前时刻，处理软中断的时间。

@@ -1,5 +1,5 @@
 [toc]
-# top命令引申出来的很多东西 #
+# top命令引申出来的一些东西 #
 ## top命令 ##
 
 在linux机器上执行`top`命令可以看到cpu利用率的数据。
@@ -23,7 +23,30 @@
 
 - load average:0.06,0.08.0.14
 
-	系统负载
+	load average 表示过去1、5、15分钟内的平均进程数。
+	
+	linux上的 load average 包括了正在使用cpu的进程数（running process）、正在等待cpu的进程数（runnable process），还包括uninterruptible sleep的进程。通常等待IO设备、等待网络的时候，进程会处于uninterruptible sleep状态。
+	
+	比如某次采样，系统有2个正在运行的进程（双核），3个可运行进程，那么系统的load就是5。
+	
+	load average是一定时间内的load数量均值。这个均值我猜测应该是一定时间多次采样的均值。比如1分钟内，采样了5次，5次的数值为5，4，5，4，5，那么load average 就是(5+4+5+4+5)/5=23/5=4.6。
+	
+	Linux设计者的逻辑是，uninterruptible sleep应该都是很短暂的，很快就会恢复运行，所以被等同于runnable。然而uninterruptible sleep即使再短暂也是sleep，何况现实世界中uninterruptible sleep未必很短暂，大量的、或长时间的uninterruptible sleep通常意味着IO设备遇到了瓶颈。众所周知，sleep状态的进程是不需要CPU的，即使所有的CPU都空闲，正在sleep的进程也是运行不了的，所以sleep进程的数量绝对不适合用作衡量CPU负载的指标，Linux把uninterruptible sleep进程算进load average的做法直接颠覆了load average的本来意义。
+	
+	所以在Linux系统上，load average这个指标基本失去了作用，因为你不知道它代表什么意思，当看到load average很高的时候，你不知道是runnable进程太多还是uninterruptible sleep进程太多，也就无法判断是CPU不够用还是IO设备有瓶颈。
+	
+	我们验证一下：
+	
+	```
+	[root@victor2 ~]# ps -ef |grep -w dd
+	root      9489  2783  7 02:10 pts/8    00:00:03 dd if=/dev/zero of=test.dbf bs=8k count=3000000
+	root      9520   393  4 02:11 pts/0    00:00:01 dd if=/dev/zero of=test.dbf bs=8k count=3000000
+	root      9617  2697  0 02:11 pts/1    00:00:00 grep --color=auto -w dd
+	[root@victor2 ~]# 
+
+	```
+	
+	运行了2个拷贝文件的进程，模拟大io进程。此时我们查看一下负载情况。
 
 - Tasks: 206 total
 

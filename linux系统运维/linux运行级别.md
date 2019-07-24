@@ -21,18 +21,20 @@
 ## 运行级别原理 ##
 
 1. 在目录`/etc/rc.d/init.d`下有许多服务器脚本程序，一般称为服务(service)，比如下面：
-
-		# victor @ localhost in /etc/rc.d/init.d [9:14:06] 
-		$ pwd
-		/etc/rc.d/init.d
+	
+	```
+	# victor @ localhost in /etc/rc.d/init.d [9:14:06] 
+	$ pwd
+	/etc/rc.d/init.d
 		
-		# victor @ localhost in /etc/rc.d/init.d [9:14:08] 
-		$ ls
-		functions  mysqld  netconsole  network  README  vmware-tools  vmware-tools-thinprint
+	# victor @ localhost in /etc/rc.d/init.d [9:14:08] 
+	$ ls
+	functions  mysqld  netconsole  network  README  vmware-tools  vmware-tools-thinprint
 		
-		# victor @ localhost in /etc/rc.d/init.d [9:14:09] 
-		$ 
-
+	# victor @ localhost in /etc/rc.d/init.d [9:14:09] 
+	$ 
+	```
+	
 2. 在`/etc/rc.d`下有7个名为rcN.d的目录，对应系统的7个运行级别，比如下面：
 
 		# victor @ localhost in /etc/rc.d [9:10:41] 

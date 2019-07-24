@@ -2,7 +2,7 @@
 # top命令引申出来的一些东西 #
 ## top命令 ##
 
-在linux机器上执行`top`命令可以看到cpu利用率的数据。
+在linux机器上执行`top`命令可以看到当前系统的一些负载，包括cpu，内存和io。
 
 ![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/top_cmd.png)
 
@@ -47,6 +47,16 @@
 	```
 	
 	运行了2个拷贝文件的进程，模拟大io进程。此时我们查看一下负载情况。
+	
+	![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/loadaverage.png)
+	
+	可以看到cpu负载并不高，两个dd进程占用的cpu也不高，加起来就10%。但是load average 却很高。测试用的cvm是单核的，这里却显示1分钟内load average平均值高达2.87。
+	
+	这说明我们cpu负载很高么？说明我们cpu不够了？
+	
+	其实不是，我们看cpu利用率就知道了，大部分是在等IO。等IO的过程，其实cpu是可以干其他事情的。
+	
+	这里load average 很高，只不过是计算的时候，把uninterruptible sleep进程也算进去了。我们上面的两个dd进程，大部分时间其实都是cpu在等io。等io的过程都被算进去了。
 
 - Tasks: 206 total
 

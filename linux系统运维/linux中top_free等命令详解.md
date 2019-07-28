@@ -1,8 +1,10 @@
-[toc]
-# top命令引申出来的一些东西 #
+
+# top命令所引申出来的系统性能指标知识 #
 ## top命令 ##
 
 在linux机器上执行`top`命令可以看到当前系统的一些负载，包括cpu，内存和io。
+
+如果procps包的版本是3.2.8（版本不一样，top展示的字段可能不一样，字段具体含义也可能不一样，可以通过`top -V`获取procps包的版本），那么top命令展示后的一个例子如下：
 
 ![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/top_cmd.png)
 
@@ -25,7 +27,7 @@
 
 	load average 表示过去1、5、15分钟内的平均进程数。
 	
-	linux上的 load average 包括了正在使用cpu的进程数（running process）、正在等待cpu的进程数（runnable process），还包括uninterruptible sleep的进程。通常等待IO设备、等待网络的时候，进程会处于uninterruptible sleep状态。
+	linux上的 load average 包括了**正在使用cpu的进程数**（running process）、**正在等待cpu的进程数**（runnable process），还包括**uninterruptible sleep的进程**。通常等待IO设备、等待网络的时候，进程会处于uninterruptible sleep状态。
 	
 	比如某次采样，系统有2个正在运行的进程（双核），3个可运行进程，那么系统的load就是5。
 	
@@ -37,7 +39,7 @@
 	
 	我们验证一下：
 	
-	```
+	```shell
 	[root@victor2 ~]# ps -ef |grep -w dd
 	root      9489  2783  7 02:10 pts/8    00:00:03 dd if=/dev/zero of=test.dbf bs=8k count=3000000
 	root      9520   393  4 02:11 pts/0    00:00:01 dd if=/dev/zero of=test.dbf bs=8k count=3000000
@@ -70,22 +72,19 @@
 
 	睡眠的进程数（A sleeping process may be waiting on something -- input/output, a child process to return, etc.）。
 
-  	关于sleeping process，引用一段话解释：
+	关于sleeping process，引用一段话解释：
+	
+	>Suppose a process starts: it gets loaded into memory, so some memory has to be allocated to it. It also gets some processor time, otherwise it would lurk just there, unable to run. Now it starts and probably it will need some additional memory to hold runtime data, it might need other OS resources, like files to be opened, network connections to be established, etc., etc..
 
+	>All these requests involve the OS, which may or may not be able to fulfill these immediately. If it is, the process gets what it requests, but if not it will be put to sleep until the OS can provide. That it is put to sleep does not mean it has nothing to do or that it could be stopped. This is just a way for the OS to do something else until it can provide everything necessary to run the process.
 
-  	> Suppose a process starts: it gets loaded into memory, so some memory has to be allocated to it. It also gets some processor time, otherwise it would lurk just there, unable to run. Now it starts and probably it will need some additional memory to hold runtime data, it might need other OS resources, like files to be opened, network connections to be established, etc., etc..
-
-
-  	> All these requests involve the OS, which may or may not be able to fulfill these immediately. If it is, the process gets what it requests, but if not it will be put to sleep until the OS can provide. That it is put to sleep does not mean it has nothing to do or that it could be stopped. This is just a way for the OS to do something else until it can provide everything necessary to run the process.
-
-
-  	> Another possiblity is that the process waits for a certain event: suppose the process services a certain network event: it will listen to the network and until a certain signal comes it has nothing to do - therefore it is going to sleep. When the signal comes, it wakes up, does whatever it is supposed to do, then goes back to sleep again. If you stop the process because it sleeps it will not be able to wake up once the signal comes.
+	> Another possiblity is that the process waits for a certain event: suppose the process services a certain network event: it will listen to the network and until a certain signal comes it has nothing to do - therefore it is going to sleep. When the signal comes, it wakes up, does whatever it is supposed to do, then goes back to sleep again. If you stop the process because it sleeps it will not be able to wake up once the signal comes.
 
 - 0 stopped
 
-  	停止的进程数。进程收到SIGSTOP信号后进入该状态，在收到SIGCONT后又会恢复运行。
-  	
-  	比如当一个进程可以和用户进行交互时，如果你通过`&`符号，将其放入到后台运行，那么这个进程就是stopped状态，比如`top &`。
+	停止的进程数。进程收到SIGSTOP信号后进入该状态，在收到SIGCONT后又会恢复运行。
+	
+	比如当一个进程可以和用户进行交互时，如果你通过`&`符号，将其放入到后台运行，那么这个进程就是stopped状态，比如`top &`。
 
 
 - 0 zombie
@@ -96,7 +95,7 @@
 
 	在Linux进程的状态中，僵尸进程是非常特殊的一种，它已经放弃了几乎所有内存空间，没有任何可执行代码，也不能被调度，仅仅在进程列表中保留一个位置，记录该进程的退出状态等信息供其他进程收集，除此之外，僵尸进程不再占有任何内存空间。
 
-	它需要它的父进程来为它收尸，如果他的父进程没安装SIGCHLD信号处理函数，调用wait或waitpid()等待子进程结束，又没有显式忽略该信号，那么它就一直保持僵尸状态，如果这时父进程结束了，那么init进程会自动接手这个子进程，为它收尸，它还是能被清除的。
+	它需要它的父进程来为它收尸，如果他的父进程没安装SIGCHLD信号处理函数，调用wait()或waitpid()等待子进程结束，又没有显式忽略该信号，那么它就一直保持僵尸状态，如果这时父进程结束了，那么init进程会自动接手这个子进程，为它收尸，它还是能被清除的。
 
 	但是如果父进程是一个循环，不会结束，那么子进程就会一直保持僵尸状态，这就是为什么系统中有时会有很多的僵尸进程。
 
@@ -136,14 +135,14 @@
 
   4. 2438076k cached
 
-    	缓冲的交换区总量（？？？？）
+    	缓冲的交换区总量。内存中的内容被换出到交换区，而后又被换入到内存，但使用过的交换区尚未被覆盖，该数值即为这些内容已存在于内存中的交换区的大小，相应的内存再次被换出时可不必再对交换区写入。
 
 再来看上面截图中，第六行后面的部分。这部分是各个进程占用的资源情况。
 
 - PID		进程号
 - USER		进程创建者
 - PR		进程优先级
-- NI		nice值。越小优先级越高，最小-20，最大19
+- NI		nice值。越小优先级越高，最小 -20，最大19
 
 	>The nice value of the task.  A negative nice value means higher priority, whereas a positive nice value means lower priority.  Zero in this field simply means priority  will
 - VIRT		进程使用的虚拟内存总量
@@ -156,8 +155,6 @@
 - COMMAND	进程名称
 
 上面有几个概念可能比较难理解，解释下。
-
-
 
 **NI和PR**
 
@@ -203,33 +200,37 @@ virtual memory usage。虚拟内存使用？
 
 但是我们内存条只有一块，那进程A和进程B的地址重复了怎么办？
 
-其实操作系统给我们做了一个映射，可以将进程的虚拟地址映射到内存条的实际地址中去。这样即使进程A和进程B的虚拟地址是一样的，但是实际上在内存条的物理地址是不一样的。具体相关知识可以参考《深入理解计算机操作系统一书》。
+其实操作系统给我们做了一个映射，可以将进程的虚拟地址映射到内存条的实际地址中去。这样即使进程A和进程B的虚拟地址是一样的，但是实际上在内存条的物理地址是不一样的。具体相关知识可以参考《深入理解计算机操作系统》一书。
 
 那这里VIRT表示的其实是进程占有的一个地址空间，只要是应用程序要求的，就全算在这里，而不管它真的用了没有，也不管有没有实际映射到物理内存中去。
 
 比如你在堆里new了一个大数组，类似这样，`char *p = new char [1024*1024*256]`，那么程序占用的VIRT大概就会是256M。但是RES却很可能没那么大。
 
-	top - 20:00:17 up 13 days, 18:47,  1 user,  load average: 0.15, 0.15, 0.14
-	Tasks:   1 total,   0 running,   1 sleeping,   0 stopped,   0 zombie
-	%Cpu(s):  0.3 us,  0.3 sy,  0.0 ni, 98.7 id,  0.7 wa,  0.0 hi,  0.0 si,  0.0 st
-	%Node0 :  0.3 us,  0.3 sy,  0.0 ni, 98.7 id,  0.7 wa,  0.0 hi,  0.0 si,  0.0 st
-	KiB Mem :  1015564 total,   133224 free,   559352 used,   322988 buff/cache
-	KiB Swap:        0 total,        0 free,        0 used.   298484 avail Mem 
-	
-	  PID USER      PR  NI    VIRT    RES    SHR S %CPU %MEM     TIME+ COMMAND                                                                                                                  
-	22241 root      20   0  274684   1068    900 S  0.0  0.1   0:00.00 a.out           
+```shell
+top - 20:00:17 up 13 days, 18:47,  1 user,  load average: 0.15, 0.15, 0.14
+Tasks:   1 total,   0 running,   1 sleeping,   0 stopped,   0 zombie
+%Cpu(s):  0.3 us,  0.3 sy,  0.0 ni, 98.7 id,  0.7 wa,  0.0 hi,  0.0 si,  0.0 st
+%Node0 :  0.3 us,  0.3 sy,  0.0 ni, 98.7 id,  0.7 wa,  0.0 hi,  0.0 si,  0.0 st
+KiB Mem :  1015564 total,   133224 free,   559352 used,   322988 buff/cache
+KiB Swap:        0 total,        0 free,        0 used.   298484 avail Mem 
+
+  PID USER      PR  NI    VIRT    RES    SHR S %CPU %MEM     TIME+ COMMAND                                                                                                                  
+22241 root      20   0  274684   1068    900 S  0.0  0.1   0:00.00 a.out           
+```
 
 测试代码是：
 
 
-	#include <iostream>
-	#include <stdio.h>
-	int main()
-	{
-	        char *p = new char[1024*1024*256];
-	        getchar();
-	        return 0;
-	}
+```c++
+#include <iostream>
+#include <stdio.h>
+int main()
+{
+        char *p = new char[1024*1024*256];
+        getchar();
+        return 0;
+}
+```
 
 可以看到，我们new了一个256M（268435456字节）大小的数组。top命令查看得到的占用VIRT的空间是274684KiB（281276416字节），
 
@@ -247,8 +248,6 @@ virtual memory usage。虚拟内存使用？
 如果申请10MB的内存，实际使用1MB，它只增长1MB，与VIRT相反。
 
 关于库占用内存的情况，它只统计加载的库文件所占内存大小。
-
-
 
 **SHR**
 
@@ -307,13 +306,13 @@ top 命令后，按键盘`1`，可以得到各个cpu的使用情况，如下：
 
 - us
 
-	用户空间占用CPU百分比（仅包括未改变优先级的）
+	用户空间占用CPU百分比（仅包括un-niced的进程，这里un-niced其实指的是调高nice值得进程，不包括调低nice值得进程，测试procps版本为3.3.10）
 - sy
 
 	内核空间占用CPU百分比
 - ni
 
-	用户进程空间内改变过优先级的进程占用CPU百分比
+	用户进程空间内改变过优先级的进程占用CPU百分比。（其实仅仅包括调高了nice值得进程，测试procps版本为3.3.10）
 - id
 
 	空闲CPU百分比
@@ -382,6 +381,10 @@ top 命令后，按键盘`1`，可以得到各个cpu的使用情况，如下：
 
 free 命令用于查看当前系统的内存使用情况。
 
+**不同版本procps包，free命令展示结果含义可能不一样**（比如`used`是否包含`buffers`和`cached`？有的是包含的，有的就没有包含）。
+
+这里以公司内tlinux1.2系统为例（procps包版本为3.2.8）,`free -m`后的展示结果如下：
+
 	[root@VM_126_59_tlinux /data/tdsql_shark/log]# free -m
 	             total       used       free     shared    buffers     cached
 	Mem:          7857       4654       3203          0        382       2665
@@ -391,39 +394,38 @@ free 命令用于查看当前系统的内存使用情况。
 
 对于上面的例子，解释如下：
 
-- Mem_total
+- Mem\_total
 
   内存总数，7857
 
-- Mem_used
+- Mem\_used
 
   已经使用的内存数（包含buffers 与cache），4654
 
-- Mem_free
+- Mem\_free
 
   空闲的内存数，3203
 
-- Mem_shared
+- Mem\_shared
 
-  共享内存，一般系统不会用到，这里也不讨论
+  共享内存，一般系统不会用到，这里也不讨论。它也没有卷入我们讨论的内存计算问题中。
 
-- Mem_buffers
-- Mem_cached
+- Mem\_buffers
+- Mem\_cached
 - -buffers/cache
 
-  1606，等于Mem_used-Mem_buffers-Mem_cached。这里可能有出入，算了一下，Mem_used-Mem_buffers-Mem_cached=4654-382-2665=1607,而Mem_used为1606。
+  1606，等于Mem\_used-Mem\_buffers-Mem\_cached。这里可能有出入，算了一下，Mem\_used-Mem\_buffers-Mem\_cached=4654-382-2665=1607,而Mem\_used为1606。
 
   反映的是被程序实实在在吃掉的内存。
 
 - +buffers/cache
 
-  6251，等于Mem_free+Mem_buffers+Mem_cached。这里也有出入，算了一下，Mem_free+Mem_buffers+Mem_cached=3203+382+2665=6250,而从上面`free -m`命令执行的结果来看，`+buffers/cache`为6251。
+	6251，等于Mem\_free+Mem\_buffers+Mem\_cached。这里也有出入，算了一下，Mem\_free+Mem\_buffers+Mem\_cached=3203+382+2665=6250,而从上面`free -m`命令执行的结果来看，`+buffers/cache`为6251。
+	反映的是可以挪用的内存总数
 
-  反映的是可以挪用的内存总数
+- Swap\_total，Swap\_used， Swap\_free
 
-- Swap_total
-- Swap_used
-- Swap_free
+	这三个不用多介绍了。
 
 ### buffer和cache的区别 ###
 >
@@ -470,11 +472,15 @@ Cache（缓存）则是系统两端处理速度不匹配时的一种折衷策略
 下面解释一下各数值的含义。
 
 - user(19185968)，从系统启动开始累计到当前时刻，用户态的CPU时间（单位：jiffies） 。
+
 - nice(82)，从系统启动开始累计到当前时刻，低优先级程序所占用的用户态的CPU时间（单位：jiffies）。
+
 - system(6873228)，从系统启动开始累计到当前时刻，内核态时间。
+
 - idle(936299176)，从系统启动开始累计到当前时刻，除硬盘IO等待时间以外其它空闲时间。
 
 	这里说**除硬盘IO等待时间以外其它空闲时间**，是因为有可能在等io的时候，cpu被调度去干其他事情了
+	
 - iowait(206814)，从系统启动开始累计到当前时刻，等待io响应的时间。
 
 	这里等待io响应的时间是这样定义的：**CPU空闲、并且有仍未完成的I/O请求**。
@@ -485,9 +491,9 @@ Cache（缓存）则是系统两端处理速度不匹配时的一种折衷策略
 	
 	再比如，在CPU繁忙期间发生的I/O，无论IO是多还是少，%iowait都不会变；当CPU繁忙程度下降时，有一部分IO落入CPU空闲时间段内，导致%iowait升高。
 	
-	IO的并发度低，%iowait就高；IO的并发度高，%iowait可能就比较低。
+	IO的并发度低，iowait就高；IO的并发度高，iowait可能就比较低。
 	
-	我们可以这样认为，当系统的cpu占用率不高，cpu很空闲时，如果%iowait升高，有进程在做大io操作，cpu都在等io。
+	我们可以这样认为，当系统的cpu占用率不高，cpu很空闲时，如果%iowait升高，那么有可能有进程在做大io操作，cpu都在等io。
 	
 	可见%iowait是一个非常模糊的指标，如果看到 %iowait 升高，还需检查I/O量有没有明显增加，avserv/avwait/avque等指标有没有明显增大，应用有没有感觉变慢，如果都没有，就没什么好担心的。
 	
@@ -502,7 +508,7 @@ Cache（缓存）则是系统两端处理速度不匹配时的一种折衷策略
 	然后我们再执行一个死循环进程`a.out`。
 	
 		[root@victor2 ~]# ./a.out 
-		
+	
 	再看一下top，发现iowait降低几乎为0了。
 	
 	![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/iowait_2.png)
@@ -510,125 +516,131 @@ Cache（缓存）则是系统两端处理速度不匹配时的一种折衷策略
 	其实这时候系统的io还是很高的，如果我们光凭iowait的值来判断系统io负载，这时候就出错了。
 	
 - irq(42)，从系统启动开始累计到当前时刻，处理硬中断的时间。
+
 - softirq(131492)，从系统启动开始累计到当前时刻，处理软中断的时间。
+
 - steal(0)，在虚拟环境下 CPU 花在处理其他作业系统的时间，Linux 2.6.11 开始才开始支持。
+
+  > Steal time is the percentage of time a virtual CPU waits for a real CPU while the hypervisor is servicing another virtual processor.
+
 - guest(0)，在 Linux 内核控制下 CPU 为 guest 作业系统运行虚拟 CPU 的时间，Linux 2.6.24 开始才开始支持。
+
 - guest_nice(0)（since Linux 2.6.33），Time spent running a niced guest (virtual CPU for guest operating systems under the control of the Linux kernel).
 
 **网络上很多关于nice的解释是错的，将其解释为，nice值为负的进程所占用的CPU时间。**
 
-**对user的解释也有问题，	解释为用户态的CPU时间（单位：jiffies），不包含nice值为负进程。**
+**对user的解释也有问题，解释为用户态的CPU时间（单位：jiffies），不包含nice值为负进程的时间。**
 
 其实，我们看下官方的文档就知道了（出处：[http://man7.org/linux/man-pages/man5/proc.5.html](http://man7.org/linux/man-pages/man5/proc.5.html)）
 
 	/proc/stat
-      kernel/system statistics.  Varies with architecture.  Common
-      entries include:
-
-      cpu 10132153 290696 3084719 46828483 16683 0 25195 0 175628 0
-      cpu0 1393280 32966 572056 13343292 6130 0 17875 0 23933 0
-             The amount of time, measured in units of USER_HZ
-             (1/100ths of a second on most architectures, use
-             sysconf(_SC_CLK_TCK) to obtain the right value), that
-             the system ("cpu" line) or the specific CPU ("cpuN"
-             line) spent in various states:
-
-             user   (1) Time spent in user mode.
-
-             nice   (2) Time spent in user mode with low priority
-                    (nice).
-
-             system (3) Time spent in system mode.
-
-             idle   (4) Time spent in the idle task.  This value
-                    should be USER_HZ times the second entry in the
-                    /proc/uptime pseudo-file.
-
-             iowait (since Linux 2.5.41)
-                    (5) Time waiting for I/O to complete.  This
-                    value is not reliable, for the following rea‐
-                    sons:
-
-                    1. The CPU will not wait for I/O to complete;
-                       iowait is the time that a task is waiting for
-                       I/O to complete.  When a CPU goes into idle
-                       state for outstanding task I/O, another task
-                       will be scheduled on this CPU.
-
-                    2. On a multi-core CPU, the task waiting for I/O
-                       to complete is not running on any CPU, so the
-                       iowait of each CPU is difficult to calculate.
-
-                    3. The value in this field may decrease in cer‐
-                       tain conditions.
-
-             irq (since Linux 2.6.0)
-                    (6) Time servicing interrupts.
-
-             softirq (since Linux 2.6.0
-                    (7) Time servicing softirqs.
-
-             steal (since Linux 2.6.11)
-                    (8) Stolen time, which is the time spent in
-                    other operating systems when running in a virtu‐
-                    alized environment
-
-             guest (since Linux 2.6.24)
-                    (9) Time spent running a virtual CPU for guest
-                    operating systems under the control of the Linux
-                    kernel.
-
-             guest_nice (since Linux 2.6.33)
-                    (10) Time spent running a niced guest (virtual
-                    CPU for guest operating systems under the con‐
-                    trol of the Linux kernel).
-
-      page 5741 1808
-             The number of pages the system paged in and the number
-             that were paged out (from disk).
-
-      swap 1 0
-             The number of swap pages that have been brought in and
-             out.
-
-      intr 1462898
-             This line shows counts of interrupts serviced since
-             boot time, for each of the possible system interrupts.
-             The first column is the total of all interrupts ser‐
-             viced including unnumbered architecture specific inter‐
-             rupts; each subsequent column is the total for that
-             particular numbered interrupt.  Unnumbered interrupts
-             are not shown, only summed into the total.
-
-      disk_io: (2,0):(31,30,5764,1,2) (3,0):...
-             (major,disk_idx):(noinfo, read_io_ops, blks_read,
-             write_io_ops, blks_written)
-             (Linux 2.4 only)
-
-      ctxt 115315
-             The number of context switches that the system under‐
-             went.
-
-      btime 769041601
-             boot time, in seconds since the Epoch, 1970-01-01
-             00:00:00 +0000 (UTC).
-
-      processes 86031
-             Number of forks since boot.
-
-      procs_running 6
-             Number of processes in runnable state.  (Linux 2.5.45
-             onward.)
-
-      procs_blocked 2
-             Number of processes blocked waiting for I/O to com‐
-             plete.  (Linux 2.5.45 onward.)
-
-      softirq 229245889 94 60001584 13619 5175704 2471304 28 51212741 59130143 0 51240672
-             This line shows the number of softirq for all CPUs.
-             The first column is the total of all softirqs and each
-             subsequent column is the total for particular softirq.
-             (Linux 2.6.31 onward.)
+	  kernel/system statistics.  Varies with architecture.  Common
+	  entries include:
+	
+	  cpu 10132153 290696 3084719 46828483 16683 0 25195 0 175628 0
+	  cpu0 1393280 32966 572056 13343292 6130 0 17875 0 23933 0
+	         The amount of time, measured in units of USER_HZ
+	         (1/100ths of a second on most architectures, use
+	         sysconf(_SC_CLK_TCK) to obtain the right value), that
+	         the system ("cpu" line) or the specific CPU ("cpuN"
+	         line) spent in various states:
+	
+	         user   (1) Time spent in user mode.
+	
+	         nice   (2) Time spent in user mode with low priority
+	                (nice).
+	
+	         system (3) Time spent in system mode.
+	
+	         idle   (4) Time spent in the idle task.  This value
+	                should be USER_HZ times the second entry in the
+	                /proc/uptime pseudo-file.
+	
+	         iowait (since Linux 2.5.41)
+	                (5) Time waiting for I/O to complete.  This
+	                value is not reliable, for the following rea‐
+	                sons:
+	
+	                1. The CPU will not wait for I/O to complete;
+	                   iowait is the time that a task is waiting for
+	                   I/O to complete.  When a CPU goes into idle
+	                   state for outstanding task I/O, another task
+	                   will be scheduled on this CPU.
+	
+	                2. On a multi-core CPU, the task waiting for I/O
+	                   to complete is not running on any CPU, so the
+	                   iowait of each CPU is difficult to calculate.
+	
+	                3. The value in this field may decrease in cer‐
+	                   tain conditions.
+	
+	         irq (since Linux 2.6.0)
+	                (6) Time servicing interrupts.
+	
+	         softirq (since Linux 2.6.0
+	                (7) Time servicing softirqs.
+	
+	         steal (since Linux 2.6.11)
+	                (8) Stolen time, which is the time spent in
+	                other operating systems when running in a virtu‐
+	                alized environment
+	
+	         guest (since Linux 2.6.24)
+	                (9) Time spent running a virtual CPU for guest
+	                operating systems under the control of the Linux
+	                kernel.
+	
+	         guest_nice (since Linux 2.6.33)
+	                (10) Time spent running a niced guest (virtual
+	                CPU for guest operating systems under the con‐
+	                trol of the Linux kernel).
+	
+	  page 5741 1808
+	         The number of pages the system paged in and the number
+	         that were paged out (from disk).
+	
+	  swap 1 0
+	         The number of swap pages that have been brought in and
+	         out.
+	
+	  intr 1462898
+	         This line shows counts of interrupts serviced since
+	         boot time, for each of the possible system interrupts.
+	         The first column is the total of all interrupts ser‐
+	         viced including unnumbered architecture specific inter‐
+	         rupts; each subsequent column is the total for that
+	         particular numbered interrupt.  Unnumbered interrupts
+	         are not shown, only summed into the total.
+	
+	  disk_io: (2,0):(31,30,5764,1,2) (3,0):...
+	         (major,disk_idx):(noinfo, read_io_ops, blks_read,
+	         write_io_ops, blks_written)
+	         (Linux 2.4 only)
+	
+	  ctxt 115315
+	         The number of context switches that the system under‐
+	         went.
+	
+	  btime 769041601
+	         boot time, in seconds since the Epoch, 1970-01-01
+	         00:00:00 +0000 (UTC).
+	
+	  processes 86031
+	         Number of forks since boot.
+	
+	  procs_running 6
+	         Number of processes in runnable state.  (Linux 2.5.45
+	         onward.)
+	
+	  procs_blocked 2
+	         Number of processes blocked waiting for I/O to com‐
+	         plete.  (Linux 2.5.45 onward.)
+	
+	  softirq 229245889 94 60001584 13619 5175704 2471304 28 51212741 59130143 0 51240672
+	         This line shows the number of softirq for all CPUs.
+	         The first column is the total of all softirqs and each
+	         subsequent column is the total for particular softirq.
+	         (Linux 2.6.31 onward.)
 
 
 上面文档可以看出，`nice`的含义是低优先级的process所花的时间，低优先级其实应该是nice为正的进程。
@@ -658,7 +670,7 @@ Cache（缓存）则是系统两端处理速度不匹配时的一种折衷策略
 如果我们这样呢，
 
 	[root@victor2 ~]# nice -n -1 ./a.out   
-	
+
 top查看cpu利用率，
 
 ![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/nice_2.png)
@@ -670,7 +682,16 @@ top查看cpu利用率，
 1. ni表示的是运行时，通过nice命令调整了nice值>0的进程所用的时间。
 
 	>The ni stat shows how much time the CPU spent running user space processes that have been niced. On a system where no processes have been niced then the number will be 0.
+	
 2. us表示的是用户空间进程所花时间（不包括1中所花时间）
+
+
+
+我们可以通过`/proc/stat`里面的内容计算某个cpu的利用率。
+
+假设t1时间，`user`, `nice`,`system`,`idle`,`iowait`,`irq`,`softirq`,`steal`,`guest`,`guest_nice`的取值分别为
+
+
 
 
 github上一个简单的计算cpu使用率的shell脚本，[这里](https://github.com/pcolby/scripts/blob/master/cpu.sh)。
@@ -703,7 +724,6 @@ github上一个简单的计算cpu使用率的shell脚本，[这里](https://gith
 
 	The session ID of the process.
 	
-	
 - tty_nr  %d (34816)
 - tpgid  %d
 - flags  %u
@@ -717,7 +737,7 @@ github上一个简单的计算cpu使用率的shell脚本，[这里](https://gith
 - cmajflt  %lu (0)
 - utime %lu
 
-	>Amount of time that this process has been scheduled in user mode, measured in clock ticks (divide by sysconf(_SC_CLK_TCK)).  This includes guest time, guest\_time (time spent running a virtual CPU, see below), so that applications that are not aware of the guest time field do not lose that time from their calculations.
+	>Amount of time that this process has been scheduled in user mode, measured in clock ticks (divide by sysconf(\_SC\_CLK\_TCK)).  This includes guest time, guest\_time (time spent running a virtual CPU, see below), so that applications that are not aware of the guest time field do not lose that time from their calculations.
 	
 	该任务在用户态运行的时间，单位为jiffies。
 	
@@ -725,7 +745,6 @@ github上一个简单的计算cpu使用率的shell脚本，[这里](https://gith
 	>Amount of time that this process has been scheduled in kernel mode, measured in clock ticks (divide by sysconf(_SC_CLK_TCK)).
 	
 	该任务在核心态运行的时间，单位为jiffies
-	
 	
 - cutime  %ld
 - cstime  %ld

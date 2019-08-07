@@ -2,6 +2,8 @@
 
 ## lsblk
 
+lsblk是一个常用的命令，可以展示机器所有的block devices，包括已挂载和未挂载的。
+
 ```shell
 [root@localhost ~]# lsblk
 NAME            MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
@@ -56,9 +58,9 @@ umount /mnt
 
 
 - nvme0: first registered device's device controller
-- nvme0n1: first registered device's first namespace，就是我们的一个磁盘，可以理解为我们使用sas盘时看到的`/dev/sd[abc]`
+- nvme0n1: first registered device's first namespace，就是一个磁盘，可以理解为我们使用sas盘时看到的`/dev/sd[abc]`
 - nvme0n1p1: first registered device's first namespace's first
-  partition，就是我们的一个分区，可以理解为我们使用sas盘时看到的`/dev/sda[1234]`
+  partition，就是一个分区，可以理解为我们使用sas盘时看到的`/dev/sda[1234]`
 
 
 
@@ -446,7 +448,7 @@ sr0     11:0    1 1024M  0 rom
 
 ```
 
-上面是我使用`parted`交互式命令进行gpt分区的步骤。
+上面是使用`parted`交互式命令进行gpt分区的步骤。
 
 最终结果是对磁盘`sdc`进行分区，得到了一个5.6G大小的分区，分区文件系统是ext4。
 
@@ -536,6 +538,8 @@ RAID5 应该是目前最常见的 RAID 等级。它有数据校验，并将校�
 
 ## lvm
 
+### lvm简介
+
 LVM是Linux操作系统的逻辑卷管理器。
 
 逻辑卷管理提供了比传统的磁盘和分区视图更高级别的计算机系统上磁盘存储的视图。 这使得系统管理员可以更灵活地将存储分配给应用程序和用户。
@@ -554,185 +558,214 @@ LVM是Linux操作系统的逻辑卷管理器。
 
 再基于这两个Logical Volume，创建出了对应的文件系统。
 
-这里涉及到几个概念：
+这里涉及到几个概念。
 
-- Physical Hard Drive，就是我们的磁盘，存在形式就是我们安装了一个磁盘之后，在`/dev/`目录下面会有类似`/dev/sda`，`/dev/sdb`这种文件，或者类似`/dev/nvme0n1`，`/dev/nvme0n2`这种。
+### Physical Hard Drive
 
-- Partition，就是基于我们的磁盘做的分区。基于分区去创建PV的时候，需要设置分区标志为lvm类型（lvm分区id为8e）。前文中提到的`/dev/nvme0n1p2`分区就是lvm类型的。设置方法如下：
+Physical Hard Drive，就是我们的磁盘，存在形式就是我们安装了一个磁盘之后，在`/dev/`目录下面会有类似`/dev/sda`，`/dev/sdb`这种文件，或者类似`/dev/nvme0n1`，`/dev/nvme0n2`这种。
 
-  ![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/pvlvm.png)
+### Partition
 
-- Physical Volume（PV），一个PV典型的就是一个磁盘，也有可能是看起来像一个磁盘的东西，比如做过软raid的设备。上面提到的分区也可以是一个PV，不过需要设置分区标志为lvm（8e）。
+Partition，就是基于我们的磁盘做的分区。基于分区去创建PV的时候，需要设置分区标志为lvm类型（lvm分区id为8e）。前文中提到的`/dev/nvme0n1p2`分区就是lvm类型的。设置方法如下：
 
-  在将磁盘或者分区作为PV之前，需要对其进行初始化工作。
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/pvlvm.png)
 
-  使用命令：`pvcreate`
+### Physical Volume
 
-  ```shell
-  [root@localhost ~]# pvcreate /dev/nvme0n3p1 
-    Physical volume "/dev/nvme0n3p1" successfully created.
-  [root@localhost ~]# 
-  
-  ```
+Physical Volume（PV），一个PV典型的就是一个磁盘，也有可能是看起来像一个磁盘的东西，比如做过软raid的设备。上面提到的分区也可以是一个PV，不过需要设置分区标志为lvm（8e）。
 
-- Volume Group（VG），卷组是LVM中使用的最高级别的抽象。一个VG包含了多个Physical devices，每个physical device就是上面说的PV。因此，我们可以往一个VG中添加PV，达到扩容VG的目的。
+在将磁盘或者分区作为PV之前，需要对其进行初始化工作。
 
-  先查看有哪些VG，命令`vgdisplay`。
+使用命令：`pvcreate`
 
-  ```shell
-  [root@localhost ~]# vgdisplay 
-    --- Volume group ---
-    VG Name               centos
-    System ID             
-    Format                lvm2
-    Metadata Areas        3
-    Metadata Sequence No  7
-    VG Access             read/write
-    VG Status             resizable
-    MAX LV                0
-    Cur LV                2
-    Open LV               2
-    Max PV                0
-    Cur PV                3
-    Act PV                3
-    VG Size               <38.99 GiB
-    PE Size               4.00 MiB
-    Total PE              9981
-    Alloc PE / Size       8959 / <35.00 GiB
-    Free  PE / Size       1022 / 3.99 GiB
-    VG UUID               JFc6rR-fMF9-4qef-xp2N-ubho-bkz6-UyJnWa
-     
-  [root@localhost ~]# 
-  
-  ```
+```shell
+[root@localhost ~]# pvcreate /dev/nvme0n3p1 
+  Physical volume "/dev/nvme0n3p1" successfully created.
+[root@localhost ~]# 
 
-  可以看到有一个VG，VG name是centos。当前这个VG的大小为38.99GiB。我们尝试将上面创建的PV（`/dev/nvme0n3p1`）添加进去，命令`vgextend`。	
+```
 
-  ```shell
-  [root@localhost ~]# vgextend centos /dev/nvme0n3
-  nvme0n3    nvme0n3p1  
-  [root@localhost ~]# vgextend centos /dev/nvme0n3p1 
-    Volume group "centos" successfully extended
-  [root@localhost ~]# vgdisplay 
-    --- Volume group ---
-    VG Name               centos
-    System ID             
-    Format                lvm2
-    Metadata Areas        4
-    Metadata Sequence No  8
-    VG Access             read/write
-    VG Status             resizable
-    MAX LV                0
-    Cur LV                2
-    Open LV               2
-    Max PV                0
-    Cur PV                4
-    Act PV                4
-    VG Size               43.64 GiB
-    PE Size               4.00 MiB
-    Total PE              11172
-    Alloc PE / Size       8959 / <35.00 GiB
-    Free  PE / Size       2213 / 8.64 GiB
-    VG UUID               JFc6rR-fMF9-4qef-xp2N-ubho-bkz6-UyJnWa
-     
-  [root@localhost ~]# 
-  
-  ```
+### Volume Group
 
-  添加完后，可以看到VG的大小为43.64GiB，符合预期。
+Volume Group（VG），卷组是LVM中使用的最高级别的抽象。一个VG包含了多个Physical devices，每个physical device就是上面说的PV。因此，我们可以往一个VG中添加PV，达到扩容VG的目的。
 
-- Logical Volume（LV），相当于非LVM系统中的磁盘分区。 LV作为标准块设备可见。因此LV可以包含文件系统。LV是在VG基础上划分出来的。
+先查看有哪些VG，命令`vgdisplay`。
 
-  查看有哪些LV，命令（`lvdisplay`)
+```shell
+[root@localhost ~]# vgdisplay 
+  --- Volume group ---
+  VG Name               centos
+  System ID             
+  Format                lvm2
+  Metadata Areas        3
+  Metadata Sequence No  7
+  VG Access             read/write
+  VG Status             resizable
+  MAX LV                0
+  Cur LV                2
+  Open LV               2
+  Max PV                0
+  Cur PV                3
+  Act PV                3
+  VG Size               <38.99 GiB
+  PE Size               4.00 MiB
+  Total PE              9981
+  Alloc PE / Size       8959 / <35.00 GiB
+  Free  PE / Size       1022 / 3.99 GiB
+  VG UUID               JFc6rR-fMF9-4qef-xp2N-ubho-bkz6-UyJnWa
+   
+[root@localhost ~]# 
 
-  ```
-    [root@localhost ~]# lvdisplay
-    --- Logical volume ---
-    LV Path                /dev/centos/swap
-    LV Name                swap
-    VG Name                centos
-    LV UUID                KAQeXl-bo1j-eYNP-yC4p-KTcA-ddai-22nLTR                                              
-    LV Write Access        read/write
-    LV Creation host, time localhost, 2019-07-27 20:28:58 +0800                                                
-    LV Status              available
-    # open                 2
-    LV Size                2.00 GiB
-    Current LE             512
-    Segments               1
-    Allocation             inherit
-    Read ahead sectors     auto
-    - currently set to     8192
-    Block device           253:1
-  
-    --- Logical volume ---
-    LV Path                /dev/centos/root
-    LV Name                root
-    VG Name                centos
-    LV UUID                83ov8M-wRSs-JRRv-G0g3-Op8Y-nnhl-kg9MOK                                              
-    LV Write Access        read/write
-    LV Creation host, time localhost, 2019-07-27 20:28:58 +0800                                                
-    LV Status              available
-    # open                 1
-    LV Size                <33.00 GiB
-    Current LE             8447
-    Segments               3
-    Allocation             inherit
-    Read ahead sectors     auto
-    - currently set to     8192
-    Block device           253:0
-  
-  ```
+```
 
-  可以看到有两个LV，分别是`/dev/centos/swap`和`/dev/centos/root`。这两个LV分别挂载在`swap`分区和`/`分区上。
+可以看到有一个VG，VG name是centos。当前这个VG的大小为38.99GiB。我们尝试将上面创建的PV（`/dev/nvme0n3p1`）添加进去，命令`vgextend`。	
 
-  ```shell
-  [root@localhost ~]# lsblk
-  NAME            MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
-  sr0              11:0    1  4.3G  0 rom  
-  nvme0n1         259:0    0   20G  0 disk 
-  ├─nvme0n1p1     259:1    0    1G  0 part /boot
-  └─nvme0n1p2     259:2    0   19G  0 part 
-    ├─centos-root 253:0    0   33G  0 lvm  /
-    └─centos-swap 253:1    0    2G  0 lvm  [SWAP]
-  nvme0n2         259:3    0   20G  0 disk 
-  ├─nvme0n2p1     259:4    0  4.7G  0 part 
-  │ └─centos-root 253:0    0   33G  0 lvm  /
-  └─nvme0n2p2     259:5    0 15.4G  0 part 
-    └─centos-root 253:0    0   33G  0 lvm  /
-  nvme0n3         259:6    0   20G  0 disk 
-  └─nvme0n3p1     259:7    0  4.7G  0 part 
-  [root@localhost ~]# 
-  
-  ```
+```shell
+[root@localhost ~]# vgextend centos /dev/nvme0n3
+nvme0n3    nvme0n3p1  
+[root@localhost ~]# vgextend centos /dev/nvme0n3p1 
+  Volume group "centos" successfully extended
+[root@localhost ~]# vgdisplay 
+  --- Volume group ---
+  VG Name               centos
+  System ID             
+  Format                lvm2
+  Metadata Areas        4
+  Metadata Sequence No  8
+  VG Access             read/write
+  VG Status             resizable
+  MAX LV                0
+  Cur LV                2
+  Open LV               2
+  Max PV                0
+  Cur PV                4
+  Act PV                4
+  VG Size               43.64 GiB
+  PE Size               4.00 MiB
+  Total PE              11172
+  Alloc PE / Size       8959 / <35.00 GiB
+  Free  PE / Size       2213 / 8.64 GiB
+  VG UUID               JFc6rR-fMF9-4qef-xp2N-ubho-bkz6-UyJnWa
+   
+[root@localhost ~]# 
 
-  如果我们想扩大根分区`/`的大小呢。对于lvm来说很简单，使用`lvextend`命令即可。	
+```
 
-  ```shell
-  [root@localhost ~]# lvextend -r -L +3G /dev/centos/root 
-    Size of logical volume centos/root changed from <33.00 GiB (8447 extents) to <36.00 GiB (9215 extents).
-    Logical volume centos/root successfully resized.
-  meta-data=/dev/mapper/centos-root isize=512    agcount=8, agsize=1113856 blks
-           =                       sectsz=512   attr=2, projid32bit=1
-           =                       crc=1        finobt=0 spinodes=0
-  data     =                       bsize=4096   blocks=8649728, imaxpct=25
-           =                       sunit=0      swidth=0 blks
-  naming   =version 2              bsize=4096   ascii-ci=0 ftype=1
-  log      =internal               bsize=4096   blocks=2560, version=2
-           =                       sectsz=512   sunit=0 blks, lazy-count=1
-  realtime =none                   extsz=4096   blocks=0, rtextents=0
-  data blocks changed from 8649728 to 9436160
-  [root@localhost ~]# 
-  
-  ```
+添加完后，可以看到VG的大小为43.64GiB，符合预期。
 
-  表示扩大`/dev/centos/root`这个LV的大小，增加3G空间。
+我们也可以基于以个raw hard disk来创建PV，然后将其加入到VG中。	
 
-  ![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/lvextend.png)
+```shell
+[root@localhost ~]# pvcreate /dev/nvme0n4 
+  Physical volume "/dev/nvme0n4" successfully created.
+[root@localhost ~]# 
+[root@localhost ~]# vgextend centos /dev/nvme0n4 
+  Volume group "centos" successfully extended
+[root@localhost ~]# 
 
-  对比之前`lsblk`的结果，上面截图验证确实增加了3G空间。
+```
+
+**不推荐**直接基于raw hard disk 创建PV，就算是需要将整块磁盘作为PV，也建议先创建分区，这个分区大小包含整个磁盘，然后基于分区去创建PV。原因是其他OS或者操作工具（比如parted）识别不了LVM的元数据，可能就直接将其作为free的磁盘了，这样很容易被其他工具覆盖写。
+
+具体可以参考[这里](https://unix.stackexchange.com/questions/76588/what-is-the-best-practice-for-adding-disks-in-lvm/76642#76642)。
+
+可以通过`pvdisplay`展示目前有哪些PV。
+
+### Logical Volume
+
+Logical Volume（LV），相当于非LVM系统中的磁盘分区。 LV作为标准块设备可见。因此LV可以包含文件系统。LV是在VG基础上划分出来的。
+
+查看有哪些LV，命令（`lvdisplay`)
+
+```
+  [root@localhost ~]# lvdisplay
+  --- Logical volume ---
+  LV Path                /dev/centos/swap
+  LV Name                swap
+  VG Name                centos
+  LV UUID                KAQeXl-bo1j-eYNP-yC4p-KTcA-ddai-22nLTR                                              
+  LV Write Access        read/write
+  LV Creation host, time localhost, 2019-07-27 20:28:58 +0800                                                
+  LV Status              available
+  # open                 2
+  LV Size                2.00 GiB
+  Current LE             512
+  Segments               1
+  Allocation             inherit
+  Read ahead sectors     auto
+  - currently set to     8192
+  Block device           253:1
+
+  --- Logical volume ---
+  LV Path                /dev/centos/root
+  LV Name                root
+  VG Name                centos
+  LV UUID                83ov8M-wRSs-JRRv-G0g3-Op8Y-nnhl-kg9MOK                                              
+  LV Write Access        read/write
+  LV Creation host, time localhost, 2019-07-27 20:28:58 +0800                                                
+  LV Status              available
+  # open                 1
+  LV Size                <33.00 GiB
+  Current LE             8447
+  Segments               3
+  Allocation             inherit
+  Read ahead sectors     auto
+  - currently set to     8192
+  Block device           253:0
+
+```
+
+可以看到有两个LV，分别是`/dev/centos/swap`和`/dev/centos/root`。这两个LV分别挂载在`swap`分区和`/`分区上。
+
+```shell
+[root@localhost ~]# lsblk
+NAME            MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
+sr0              11:0    1  4.3G  0 rom  
+nvme0n1         259:0    0   20G  0 disk 
+├─nvme0n1p1     259:1    0    1G  0 part /boot
+└─nvme0n1p2     259:2    0   19G  0 part 
+  ├─centos-root 253:0    0   33G  0 lvm  /
+  └─centos-swap 253:1    0    2G  0 lvm  [SWAP]
+nvme0n2         259:3    0   20G  0 disk 
+├─nvme0n2p1     259:4    0  4.7G  0 part 
+│ └─centos-root 253:0    0   33G  0 lvm  /
+└─nvme0n2p2     259:5    0 15.4G  0 part 
+  └─centos-root 253:0    0   33G  0 lvm  /
+nvme0n3         259:6    0   20G  0 disk 
+└─nvme0n3p1     259:7    0  4.7G  0 part 
+[root@localhost ~]# 
+
+```
+
+如果我们想扩大根分区`/`的大小呢。对于lvm来说很简单，使用`lvextend`命令即可。	
+
+```shell
+[root@localhost ~]# lvextend -r -L +3G /dev/centos/root 
+  Size of logical volume centos/root changed from <33.00 GiB (8447 extents) to <36.00 GiB (9215 extents).
+  Logical volume centos/root successfully resized.
+meta-data=/dev/mapper/centos-root isize=512    agcount=8, agsize=1113856 blks
+         =                       sectsz=512   attr=2, projid32bit=1
+         =                       crc=1        finobt=0 spinodes=0
+data     =                       bsize=4096   blocks=8649728, imaxpct=25
+         =                       sunit=0      swidth=0 blks
+naming   =version 2              bsize=4096   ascii-ci=0 ftype=1
+log      =internal               bsize=4096   blocks=2560, version=2
+         =                       sectsz=512   sunit=0 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
+data blocks changed from 8649728 to 9436160
+[root@localhost ~]# 
+
+```
+
+表示扩大`/dev/centos/root`这个LV的大小，增加3G空间。
+
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/lvextend.png)
+
+对比之前`lsblk`的结果，上面截图验证确实增加了3G空间。
 
 
 
 ### 创建VG
 
 前面谈到了我们如何创建一个PV，然后将这个PV加入到VG，然后扩容LV的操作。
+

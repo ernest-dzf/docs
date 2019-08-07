@@ -56,9 +56,9 @@ umount /mnt
 
 
 - nvme0: first registered device's device controller
-- nvme0n1: first registered device's first namespace
+- nvme0n1: first registered device's first namespace，就是我们的一个磁盘，可以理解为我们使用sas盘时看到的`/dev/sd[abc]`
 - nvme0n1p1: first registered device's first namespace's first
-  partition
+  partition，就是我们的一个分区，可以理解为我们使用sas盘时看到的`/dev/sda[1234]`
 
 
 
@@ -165,7 +165,7 @@ UUID=832ba9de-ebc7-4263-837a-d8e099bead17 /boot                   xfs     defaul
 
   设备的uuid是设备的属性，和设备挂载在什么系统，什么目录没有关系。同一个设备的uuid 是固定的。使用uuid挂载的好处是，确保同一个设备始终是被挂载在同一个目录上。	
 
-  我们不是用设备名称挂载是有原因的，因为设备名称并非总是一致的，它依赖于启动时内核加载模块的顺序。比如你第一次插了一个u盘启动了系统，下一次又把它拔掉了，这可能导致其他设备的设备名称出现变化。
+  我们不使用设备名称挂载是有原因的，因为设备名称并非总是一致的，它依赖于启动时内核加载模块的顺序。比如你第一次插了一个u盘启动了系统，下一次又把它拔掉了，这可能导致其他设备的设备名称出现变化。
 
   如何查看uuid呢？
 
@@ -211,7 +211,7 @@ UUID=832ba9de-ebc7-4263-837a-d8e099bead17 /boot                   xfs     defaul
   指定加载该设备的文件系统时需要使用的特定参数选项，多个参数是由逗号分隔开来。常见参数如下：
 
   - auto：系统自动挂载，fstab默认就是这个选项
-  - defaults：最常见参数，可以满足需要大多数文件系统使用
+  - defaults：最常见参数，可以满足大多数文件系统使用
   - noauto：开机不自动挂载
   - nouser：只有超级用户可以挂载
   - ro：按只读权限挂载
@@ -253,35 +253,7 @@ UUID=373bec2c-ee13-489b-8ec8-597146add899 /data3 xfs    defaults        0 0
 
 这样重启之后，nvme0n2和nvme0n3依然是被挂载的。
 
-
-
-## 做raid
-
-### raid介绍
-
-RAID （ Redundant Array of Independent Disks ）即独立磁盘冗余阵列，通常简称为磁盘阵列。
-
-RAID 主要利用数据条带、镜像和数据校验技术来获取高性能、可靠性、容错能力和扩展性，根据运用或组合运用这三种技术的策略和架构，可以把 RAID 分为不同的等级，以满足不同数据应用的需求。
-
-目前应用最多的是RAID0 、 RAID1 、 RAID3 、 RAID5 、 RAID6 和 RAID10。
-
-从实现角度看， RAID 主要分为**软 RAID**、**硬 RAID** 以及**软硬混合** RAID 三种。
-
-软 RAID 所有功能均由操作系统和 CPU 来完成，没有独立的 RAID 控制 / 处理芯片和 I/O 处理芯片，效率自然最低。
-
-硬 RAID 配备了专门的 RAID 控制 / 处理芯片和 I/O 处理芯片以及阵列缓冲，不占用 CPU 资源，但成本很高。
-
-软硬混合 RAID 具备 RAID 控制 / 处理芯片，但缺乏 I/O 处理芯片，需要 CPU 和驱动程序来完成，性能和成本 在软 RAID 和硬 RAID 之间。
-
-### 删除raid
-
-1. `cat /proc/mdstat`看下是否有raid在运行
-2. 如果有的话，看raid是否挂载了。这个可以通过`df -h`查看。如果有挂载，那么就卸载阵列。`umount /dev/mdxxxxxx`
-3. 再停止raid。`mdadm -S /dev/mdxxxxxxx`
-4. 删除磁盘，`mdadm --misc --zero-superblock /dev/sd[bcdefghij]`
-5. 删除配置文件，一般是在`/etc/mdadm.conf`。最好查看下`/etc/fstab`，看是否有自动挂载。有的话也要删除
-
-### 磁盘分区
+## 磁盘分区
 
 可以通过`fdisk -l`获取磁盘分区信息，比如是gpt分区还是mbr分区，比如每个分区的大小，……
 
@@ -398,7 +370,7 @@ I/O 大小(最小/最佳)：512 字节 / 512 字节
 
 
 
-### 分区操作
+## 分区操作
 
 我们可以使用`parted`工具来对磁盘进行分区。具体操作分为如下几步：
 
@@ -489,11 +461,68 @@ Disk identifier: B836E489-C9FA-4A76-94B1-65B0E5821DFD
 
 **文件系统是建立在分区之上的**。
 
-#### 删除分区
+### 删除分区
 
 ![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/rmpart.png)
 
 利用parted工具，可以删除分区。
+
+### 格式化分区
+
+## raid
+
+### raid介绍
+
+RAID （ Redundant Array of Independent Disks ）即独立磁盘冗余阵列，通常简称为磁盘阵列。
+
+RAID 主要利用数据条带、镜像和数据校验技术来获取高性能、可靠性、容错能力和扩展性，根据运用或组合运用这三种技术的策略和架构，可以把 RAID 分为不同的等级，以满足不同数据应用的需求。
+
+目前应用最多的是RAID0 、 RAID1 、 RAID3 、 RAID5 、 RAID6 和 RAID10。
+
+从实现角度看， RAID 主要分为**软 RAID**、**硬 RAID** 以及**软硬混合** RAID 三种。
+
+软 RAID 所有功能均由操作系统和 CPU 来完成，没有独立的 RAID 控制 / 处理芯片和 I/O 处理芯片，效率自然最低。
+
+硬 RAID 配备了专门的 RAID 控制 / 处理芯片和 I/O 处理芯片以及阵列缓冲，不占用 CPU 资源，但成本很高。
+
+软硬混合 RAID 具备 RAID 控制 / 处理芯片，但缺乏 I/O 处理芯片，需要 CPU 和驱动程序来完成，性能和成本 在软 RAID 和硬 RAID 之间。
+
+#### raid0
+
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/raid0.png)
+
+raid0是一种无数据校验的数据条带化技术。它没有数据冗余，将数据分散存储在不同的磁盘上，达到提高io的目的。
+
+raid0一般用于对性能要求严格，但对数据安全性和可靠性不高的应用，比如音频、视频，临时数据缓存空间等。
+
+#### raid1
+
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/raid1.png)
+
+raid1实际上就是镜像，一份数据存两份，磁盘空间利用率50%。
+
+RAID1 应用于对顺序读写性能要求高以及对数据保护极为重视的应用。
+
+#### raid5
+
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/raid5.png)
+
+RAID5 应该是目前最常见的 RAID 等级。它有数据校验，并将校验数据分布在阵列中所有磁盘。raid5还具备很好的扩展性。当阵列磁盘 数量增加时，并行操作量的能力也随之增长。
+
+上图为例，A<sub>p</sub>，B<sub>p</sub>，C<sub>p</sub>，D<sub>p</sub>就是校验数据，分布在不同磁盘里。即使有一块盘坏了，也不会丢数据，可以通过校验数据恢复出来。
+
+### 做raid
+
+在创建raid之前，磁盘必须要有分区，先利用parted工具对磁盘进行分区。
+
+### 删除raid
+
+1. `cat /proc/mdstat`看下是否有raid在运行
+2. 如果有的话，看raid是否挂载了。这个可以通过`df -h`查看。如果有挂载，那么就卸载阵列。`umount /dev/mdxxxxxx`
+3. 再停止raid。`mdadm -S /dev/mdxxxxxxx`
+4. 删除磁盘，`mdadm --misc --zero-superblock /dev/sd[bcdefghij]`
+5. 删除配置文件，一般是在`/etc/mdadm.conf`。最好查看下`/etc/fstab`，看是否有自动挂载。有的话也要删除
+
 
 ## lvm
 

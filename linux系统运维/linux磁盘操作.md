@@ -273,6 +273,14 @@ RAID 主要利用数据条带、镜像和数据校验技术来获取高性能、
 
 软硬混合 RAID 具备 RAID 控制 / 处理芯片，但缺乏 I/O 处理芯片，需要 CPU 和驱动程序来完成，性能和成本 在软 RAID 和硬 RAID 之间。
 
+### 删除raid
+
+1. `cat /proc/mdstat`看下是否有raid在运行
+2. 如果有的话，看raid是否挂载了。这个可以通过`df -h`查看。如果有挂载，那么就卸载阵列。`umount /dev/mdxxxxxx`
+3. 再停止raid。`mdadm -S /dev/mdxxxxxxx`
+4. 删除磁盘，`mdadm --misc --zero-superblock /dev/sd[bcdefghij]`
+5. 删除配置文件，一般是在`/etc/mdadm.conf`。最好查看下`/etc/fstab`，看是否有自动挂载。有的话也要删除
+
 ### 磁盘分区
 
 可以通过`fdisk -l`获取磁盘分区信息，比如是gpt分区还是mbr分区，比如每个分区的大小，……

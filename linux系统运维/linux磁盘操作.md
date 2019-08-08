@@ -55,12 +55,10 @@ umount /mnt
 
 还是以上面例子为例，nvme0、nvme0n1、nvme0n1p1分别表示什么呢？
 
-
-
 - nvme0: first registered device's device controller
-- nvme0n1: first registered device's first namespace，就是一个磁盘，可以理解为我们使用sas盘时看到的`/dev/sd[abc]`
+- nvme0n1: first registered device's first namespace，可以理解为我们使用sas盘时看到的`/dev/sd[abc]`
 - nvme0n1p1: first registered device's first namespace's first
-  partition，就是一个分区，可以理解为我们使用sas盘时看到的`/dev/sda[1234]`
+  partition，可以理解为我们使用sas盘时看到的`/dev/sda[1234]`
 
 
 
@@ -377,6 +375,14 @@ I/O 大小(最小/最佳)：512 字节 / 512 字节
 `nvme0n3`有1个分区。分区从2048扇区起始，至9764863扇区结束。
 
 
+
+## gpt分区与mbr分区
+
+#### gpt分区
+
+
+
+#### mbr分区
 
 ## 分区操作
 

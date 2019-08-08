@@ -13,7 +13,11 @@
 
 一个topic可以有多个Partition，具体有多少个Partition不受broker的限制。比如说kafka集群有3哥节点，也就是3个broker，某个topic是可以有4个、5个或者更多的Partition的。
 
-一个topic有多个Partition有啥好处呢？
+一个topic有多个Partition有啥好处呢？简单来说就是增大并发。这个topic可以同时被多个consumer group下的consumer消费。
+
+最好的当然是partition是分布在不同的broker上的，这样可以充分利用不同机器的资源。
+
+一个partition可以在不同的broker上存在副本，partition
 
 ## consumer Group
 
@@ -56,3 +60,9 @@ consumer group是kafka提供的可扩展且具有容错性的消费者机制。
 一个consumer可以消费多个topic么？
 
 比如说上图中Consumer Group A的group Id 为1，那么Group A下的所有consumer（C1，C2）消费的所有topic
+
+
+
+## 一些好文章
+
+1. [How to choose the number of topics/partitions in a Kafka cluster](https://www.confluent.io/blog/how-choose-number-topics-partitions-kafka-cluster)

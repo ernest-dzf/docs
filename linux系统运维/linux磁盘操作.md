@@ -570,6 +570,40 @@ Disk identifier: B836E489-C9FA-4A76-94B1-65B0E5821DFD
 
 可以使用`mkfs.ext3 /dev/sdc1`来格式化分区，或者`mkfs -s ext4 /dev/sdc1`这样也行。
 
+## 文件系统
+
+### superblock
+
+superblock记录文件系统的整体信息，包括文件系统的size，block size，block groups的size等等一些信息。
+
+> A *superblock* is a record of the characteristics of a *filesystem*, including its size, the *block*size, the empty and the filled blocks and their respective counts, the size and location of the *inode* tables, the disk block map and usage information, and the size of the *block groups*.
+
+> Super block is backed up into multiple areas of a disk.
+
+可以使用`dumpe2fs -h` 查看ext2/ext3/ext4文件系统的super block信息。
+
+> dumpe2fs prints the super block and blocks group information for the filesystem present on device.
+
+
+
+### block group
+
+扇区 --> block --> block group。
+
+以ext2文件系统为例（其他文件系统不一定是下面这样的结构），看下一个分区的数据结构是怎么样的。
+
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/block_group_1.png)
+
+每个Block的大小都是固定的（就是每个block多少个扇区）。
+
+第一个Boot Block是给Partition Boot Sector预留的，剩下的其他空间就被均分为多个block group。
+
+每个block group的布局如上图所示，有些data structure占用了一个block，有些则需要多个block。
+
+内核会尽可能让一个文件存在于一个block group中。
+
+从上面图中也可以看到，Super Block和Group Descriptors在每个Block Group中都有存一份，是冗余存储的。正常情况下，内核只会使用第一个Block Group中的super block和group descriptors。
+
 ## raid
 
 ### raid介绍
@@ -768,7 +802,7 @@ Writing superblocks and filesystem accounting information: 完成
 3. 如果有的话，看raid是否挂载了（可能就是raid上面建立的分区挂载了）。这个可以通过`df -h`查看。如果有挂载，那么就卸载阵列。`umount /dev/mdxxxxxx。`（**这个卸载时卸载raid上面建立的分区还是？**）
 3. 如果有的话，看raid上面是否有分区，可以通过parted工具查看。`select /dev/md0;p;rm`。有分区的把分区给删除了。
 4. 再停止raid。`mdadm -S /dev/mdxxxxxxx`
-5. 删除磁盘，`mdadm --misc --zero-superblock /dev/sd[bcdefghij]`
+5. 删除磁盘，`mdadm --misc --zero-superblock /dev/sd[bcdefghij]`。--misc指定了mdadm的mode。
 6. 删除配置文件，一般是在`/etc/mdadm.conf`。最好查看下`/etc/fstab`，看是否有自动挂载。有的话也要删除
 
 我们如果使用`mdadm -S /dev/md0`停止raid之后，后悔了咋办？
@@ -818,25 +852,23 @@ a.txt  b.txt  lost+found
 
 停止之后，文件是还没有丢的，可以通过`mdadm -A`重新把停止的raid恢复出来。
 
-#### block group
 
-扇区 --> block --> block group。
 
-#### Superblock
+#### raid的superblock
 
 可以通过`mdadm --zero-superblock`清除superblock。
 
-superblock记录文件系统的整体信息，包括inode/block 的总量、使用量、剩余量，以及文件系统的格式与相关信息等。
+如果raid是由分区组成，那么清除对象就是分区；如果raid是由raw disk组成，那么清除对象就是raw disk。
 
-> A *superblock* is a record of the characteristics of a *filesystem*, including its size, the *block*size, the empty and the filled blocks and their respective counts, the size and location of the *inode* tables, the disk block map and usage information, and the size of the *block groups*.
+注意区分raid 的super block和前文提到的文件系统的super block。
 
-> Super block is backed up into multiple areas of a disk.
+raid的元信息（metadata）存储在哪儿呢？其实就是superblock。
 
-dd
+每个device都有存super block。
 
-#### 参考文献
+>Starting with version 0.36 of the md driver  (kernel version 2.0.35), each disk in an array includes a superblock that describes array properties and stores them on each member disk.
 
-1. [Remove Mdadm RAID Array](https://blog.programster.org/ubuntu-remove-mdadm-raid-array)
+uperblock 的存在也让内核可以在系统启动的时候，自动组建raid阵列（mdadm.conf还有用么？）。
 
 ### 查看raid阵列的信息
 
@@ -888,9 +920,32 @@ dd
    
    ```
 
+### mdadm.conf
+
+```shell
+[root@localhost /]# mdadm --detail --scan /dev/md0
+ARRAY /dev/md0 metadata=1.2 name=localhost.localdomain:0 UUID=505780b3:de38260d:553bb6fe:02a273eb              
+[root@localhost /]# mdadm --detail --scan /dev/md0 > mdadm.conf                                                
+[root@localhost /]# 
+
+
+
+```
+
+### disk,raid,filesystem的层级
+
+> Disk -> Partition -> RAID -> LUKS -> LVM -> Filesystem
+>
+> You may skip or reorder some of those layers. It usually starts with a disk and ends in a filesystem, what's in between is optional.
+
 ### 参考文献
 
 1. [How To Create RAID Arrays with mdadm](https://www.digitalocean.com/community/tutorials/how-to-create-raid-arrays-with-mdadm-on-ubuntu-16-04)
+2. [Linux RAID 设置](https://lotabout.me/orgwiki/RAID.html)
+3. [Remove Mdadm RAID Array](https://blog.programster.org/ubuntu-remove-mdadm-raid-array)
+4. [Ext2 Disk Data Structures](https://learning.oreilly.com/library/view/understanding-the-linux/0596005652/ch18s02.html)
+5. [should i take precautions to prevent superblock overwrite?](https://unix.stackexchange.com/questions/148151/mdadm-metadata-should-i-take-precautions-to-prevent-superblock-overwrite)
+6. [The RAID Superblock](https://learning.oreilly.com/library/view/managing-raid-on/9780596802035/ch03s02s03.html)
 
 ## mktable
 

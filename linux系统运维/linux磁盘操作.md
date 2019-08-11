@@ -253,13 +253,35 @@ UUID=373bec2c-ee13-489b-8ec8-597146add899 /data3 xfs    defaults        0 0
 
 这样重启之后，nvme0n2和nvme0n3依然是被挂载的。
 
+## 磁盘不分区使用
+
+磁盘可以不分区使用不？
+
+当然可以！
+
+```shell
+[root@localhost /]# mkfs -t xfs /dev/sda 
+meta-data=/dev/sda               isize=512    agcount=4, agsize=655360 blks
+         =                       sectsz=512   attr=2, projid32bit=1
+         =                       crc=1        finobt=0, sparse=0
+data     =                       bsize=4096   blocks=2621440, imaxpct=25
+         =                       sunit=0      swidth=0 blks
+naming   =version 2              bsize=4096   ascii-ci=0 ftype=1
+log      =internal log           bsize=4096   blocks=2560, version=2
+         =                       sectsz=512   sunit=0 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
+[root@localhost /]# 
+[root@localhost /]# mount /dev/sda /data4/
+[root@localhost /]# 
+```
+
+上面就是直接格式磁盘`/dev/sda`的文件系统，然后挂载sda盘。
+
 ## 磁盘分区
 
 一块物理硬盘，可以划分成多个分区，分区信息存放在分区表里。
 
 分区表定义与保存了硬盘的分区信息，分区表位于硬盘开头的一段特定的物理空间内，操作系统等软件通过读取分区表内的信息，就能够获得该硬盘的分区信息。
-
-[参考](https://blog.csdn.net/for_cxc/article/details/88984733)
 
 可以通过`fdisk -l`获取磁盘分区信息，比如是gpt分区还是mbr分区，比如每个分区的大小，……
 
@@ -376,6 +398,8 @@ I/O 大小(最小/最佳)：512 字节 / 512 字节
 
 
 
+
+
 ## gpt分区与mbr分区
 #### mbr分区
 
@@ -412,6 +436,36 @@ I/O 大小(最小/最佳)：512 字节 / 512 字节
   表示倒数的那33个扇区，他们是GPT Header和分区表的备份
 
 
+
+## Partition Table: loop
+
+使用parted工具时候，查看某个块设备的时候，显示Partition Table是loop，比如：
+
+```shell
+[root@localhost /]# parted
+GNU Parted 3.1
+使用 /dev/sda
+Welcome to GNU Parted! Type 'help' to view a list of commands.
+(parted) select /dev/md0                                                  
+使用 /dev/md0
+(parted) p                                                                
+Model: Linux Software RAID Array (md)
+Disk /dev/md0: 21.5GB
+Sector size (logical/physical): 512B/512B
+Partition Table: loop
+Disk Flags: 
+
+Number  Start  End     Size    File system  标志
+ 1      0.00B  21.5GB  21.5GB  ext4
+
+(parted)                                                                  
+
+	       
+```
+
+> Parted can report loop when it can't find a partition table
+
+当Parted找不到partition table 的时候，会显示loop。
 
 ## 分区操作
 
@@ -560,7 +614,9 @@ RAID5 应该是目前最常见的 RAID 等级。它有数据校验，并将校�
 
 ### 做raid
 
-在创建raid之前，磁盘必须要有分区，先利用parted工具对磁盘进行分区，利用前面提到的parted工具，结果就是：
+#### 先分区再做raid
+
+先利用parted工具对磁盘进行分区，利用前面提到的parted工具，结果就是：
 
 ```shell
 [root@localhost ~]# lsblk
@@ -590,14 +646,270 @@ nvme0n4         259:8    0   20G  0 disk
 
 sda和sdb就是分好区的两块盘。
 
+```shell
+[root@localhost ~]# mdadm -C -v /dev/md0 -l 0 -n 2 /dev/sda1 /dev/sdb1 
+mdadm: chunk size defaults to 512K
+mdadm: Defaulting to version 1.2 metadata
+mdadm: array /dev/md0 started.
+[root@localhost ~]# lsblk
+NAME            MAJ:MIN RM  SIZE RO TYPE  MOUNTPOINT
+sda               8:0    0   10G  0 disk  
+└─sda1            8:1    0  9.3G  0 part  
+  └─md0           9:0    0 18.6G  0 raid0 
+sdb               8:16   0   10G  0 disk  
+└─sdb1            8:17   0  9.3G  0 part  
+  └─md0           9:0    0 18.6G  0 raid0 
+sr0              11:0    1  4.3G  0 rom   
+nvme0n1         259:0    0   20G  0 disk  
+├─nvme0n1p1     259:1    0    1G  0 part  /boot
+└─nvme0n1p2     259:2    0   19G  0 part  
+  ├─centos-root 253:0    0   46G  0 lvm   /
+  └─centos-swap 253:1    0    2G  0 lvm   [SWAP]
+nvme0n2         259:3    0   20G  0 disk  
+├─nvme0n2p1     259:4    0  4.7G  0 part  
+│ └─centos-root 253:0    0   46G  0 lvm   /
+└─nvme0n2p2     259:5    0 15.4G  0 part  
+  └─centos-root 253:0    0   46G  0 lvm   /
+nvme0n3         259:6    0   20G  0 disk  
+└─nvme0n3p1     259:7    0  4.7G  0 part  
+nvme0n4         259:8    0   20G  0 disk  
+└─centos-root   253:0    0   46G  0 lvm   /
+[root@localhost ~]# 
+
+```
+
+上面创建好了一个raid0阵列。通过命令`lsblk`也可以看到效果。
+
+创建raid之后，可以对raid进行分区（当然也可以不分区，直接刷文件系统`mkfs -t`），分区的方法和前面讲的利用parted工具进行分区一样。
+
+分区好之后，可以利用`mkfs`工具对文件系统重新刷一下。然后再将分区挂载到某个目录下面就可以使用了。最终的效果可能类似下面这样。
+
+```shell
+[root@localhost /]# lsblk
+NAME            MAJ:MIN RM  SIZE RO TYPE  MOUNTPOINT
+sda               8:0    0   10G  0 disk  
+└─sda1            8:1    0  9.3G  0 part  
+  └─md0           9:0    0 18.6G  0 raid0 
+    └─md0p1     259:10   0 18.6G  0 md    /data4
+sdb               8:16   0   10G  0 disk  
+└─sdb1            8:17   0  9.3G  0 part  
+  └─md0           9:0    0 18.6G  0 raid0 
+    └─md0p1     259:10   0 18.6G  0 md    /data4
+sr0              11:0    1  4.3G  0 rom   
+nvme0n1         259:0    0   20G  0 disk  
+├─nvme0n1p1     259:1    0    1G  0 part  /boot
+└─nvme0n1p2     259:2    0   19G  0 part  
+  ├─centos-root 253:0    0   46G  0 lvm   /
+  └─centos-swap 253:1    0    2G  0 lvm   [SWAP]
+nvme0n2         259:3    0   20G  0 disk  
+├─nvme0n2p1     259:4    0  4.7G  0 part  
+│ └─centos-root 253:0    0   46G  0 lvm   /
+└─nvme0n2p2     259:5    0 15.4G  0 part  
+  └─centos-root 253:0    0   46G  0 lvm   /
+nvme0n3         259:6    0   20G  0 disk  
+└─nvme0n3p1     259:7    0  4.7G  0 part  
+nvme0n4         259:8    0   20G  0 disk  
+└─centos-root   253:0    0   46G  0 lvm   /
+[root@localhost /]# 
+
+
+```
+
+
+
+#### 对raw disk 做raid
+
+当然也可以直接对raw disk做raid。
+
+```shell
+[root@localhost /]# mdadm -C -v /dev/md0 -l 0 -n 2 /dev/sd[ab]
+mdadm: chunk size defaults to 512K
+mdadm: Defaulting to version 1.2 metadata
+mdadm: array /dev/md0 started.
+[root@localhost /]# cat /proc/mdstat 
+Personalities : [raid0] 
+md0 : active raid0 sdb[1] sda[0]
+      20953088 blocks super 1.2 512k chunks
+      
+unused devices: <none>
+[root@localhost /]# 
+[root@localhost /]# mkfs -t ext4 /dev/md0 
+mke2fs 1.42.9 (28-Dec-2013)
+文件系统标签=
+OS type: Linux
+块大小=4096 (log=2)
+分块大小=4096 (log=2)
+Stride=128 blocks, Stripe width=256 blocks
+1310720 inodes, 5238272 blocks
+261913 blocks (5.00%) reserved for the super user
+第一个数据块=0
+Maximum filesystem blocks=2153775104
+160 block groups
+32768 blocks per group, 32768 fragments per group
+8192 inodes per group
+Superblock backups stored on blocks: 
+        32768, 98304, 163840, 229376, 294912, 819200, 884736, 1605632, 2654208, 
+        4096000
+
+Allocating group tables: 完成                            
+正在写入inode表: 完成                            
+Creating journal (32768 blocks): 完成
+Writing superblocks and filesystem accounting information: 完成   
+
+[root@localhost /]# 
+
+```
+
+然后进行挂载就可以使用了。
+
 ### 删除raid
 
 1. `cat /proc/mdstat`看下是否有raid在运行
-2. 如果有的话，看raid是否挂载了。这个可以通过`df -h`查看。如果有挂载，那么就卸载阵列。`umount /dev/mdxxxxxx`
-3. 再停止raid。`mdadm -S /dev/mdxxxxxxx`
-4. 删除磁盘，`mdadm --misc --zero-superblock /dev/sd[bcdefghij]`
-5. 删除配置文件，一般是在`/etc/mdadm.conf`。最好查看下`/etc/fstab`，看是否有自动挂载。有的话也要删除
+3. 如果有的话，看raid是否挂载了（可能就是raid上面建立的分区挂载了）。这个可以通过`df -h`查看。如果有挂载，那么就卸载阵列。`umount /dev/mdxxxxxx。`（**这个卸载时卸载raid上面建立的分区还是？**）
+3. 如果有的话，看raid上面是否有分区，可以通过parted工具查看。`select /dev/md0;p;rm`。有分区的把分区给删除了。
+4. 再停止raid。`mdadm -S /dev/mdxxxxxxx`
+5. 删除磁盘，`mdadm --misc --zero-superblock /dev/sd[bcdefghij]`
+6. 删除配置文件，一般是在`/etc/mdadm.conf`。最好查看下`/etc/fstab`，看是否有自动挂载。有的话也要删除
 
+我们如果使用`mdadm -S /dev/md0`停止raid之后，后悔了咋办？
+
+```shell
+[root@localhost /]# mdadm -A /dev/md1 /dev/sda /dev/sdb 
+mdadm: /dev/md1 has been started with 2 drives.
+[root@localhost /]# cat /proc/mdstat 
+Personalities : [raid0] 
+md1 : active raid0 sda[0] sdb[1]
+      20953088 blocks super 1.2 512k chunks
+      
+unused devices: <none>
+[root@localhost /]# 
+
+
+```
+
+考虑下面这种case：
+
+```shell
+[root@localhost data4]# cd /data4/
+[root@localhost data4]# lsblk 
+NAME            MAJ:MIN RM  SIZE RO TYPE  MOUNTPOINT
+sda               8:0    0   10G  0 disk  
+└─md1             9:1    0   20G  0 raid0 
+  ├─md1p1       259:9    0  9.3G  0 md    /data4
+  └─md1p2       259:10   0 10.7G  0 md    
+sdb               8:16   0   10G  0 disk  
+└─md1             9:1    0   20G  0 raid0 
+  ├─md1p1       259:9    0  9.3G  0 md    /data4
+  └─md1p2       259:10   0 10.7G  0 md    
+
+```
+
+md1是raid1阵列，我们在md1上创建了2个分区，然后格式化md1p1分区为ext4文件系统，挂载在`/data4`目录下。
+
+```shell
+[root@localhost data4]# ls
+a.txt  b.txt  lost+found
+[root@localhost data4]# 
+
+
+```
+
+我们在`/data4`目录下创建两个文件。如果我们这时候使用`mdadm -S`停止raid之后，这两个文件会丢么？
+
+停止之后，文件是还没有丢的，可以通过`mdadm -A`重新把停止的raid恢复出来。
+
+#### block group
+
+扇区 --> block --> block group。
+
+#### Superblock
+
+可以通过`mdadm --zero-superblock`清除superblock。
+
+superblock记录文件系统的整体信息，包括inode/block 的总量、使用量、剩余量，以及文件系统的格式与相关信息等。
+
+> A *superblock* is a record of the characteristics of a *filesystem*, including its size, the *block*size, the empty and the filled blocks and their respective counts, the size and location of the *inode* tables, the disk block map and usage information, and the size of the *block groups*.
+
+> Super block is backed up into multiple areas of a disk.
+
+dd
+
+#### 参考文献
+
+1. [Remove Mdadm RAID Array](https://blog.programster.org/ubuntu-remove-mdadm-raid-array)
+
+### 查看raid阵列的信息
+
+1. `mdadm -D /dev/md0`
+
+   ```shell
+   [root@localhost /]# mdadm -D /dev/md0
+   /dev/md0:
+              Version : 1.2
+        Creation Time : Sat Aug 10 15:25:44 2019
+           Raid Level : raid0
+           Array Size : 20953088 (19.98 GiB 21.46 GB)
+         Raid Devices : 2
+        Total Devices : 2
+          Persistence : Superblock is persistent
+   
+          Update Time : Sat Aug 10 15:25:44 2019
+                State : clean 
+       Active Devices : 2
+      Working Devices : 2
+       Failed Devices : 0
+        Spare Devices : 0
+   
+           Chunk Size : 512K
+   
+   Consistency Policy : none
+   
+                 Name : localhost.localdomain:0  (local to host localhost.localdomain)
+                 UUID : 505780b3:de38260d:553bb6fe:02a273eb
+               Events : 0
+   
+       Number   Major   Minor   RaidDevice State
+          0       8        0        0      active sync   /dev/sda
+          1       8       16        1      active sync   /dev/sdb
+   [root@localhost /]# 
+   
+   ```
+
+2. `cat /proc/mdstat`，查看raid状态
+
+   ```shell
+   [root@localhost /]# cat /proc/mdstat 
+   Personalities : [raid0] 
+   md0 : active raid0 sdb[1] sda[0]
+         20953088 blocks super 1.2 512k chunks
+         
+   unused devices: <none>
+   [root@localhost /]# 
+   
+   ```
+
+### 参考文献
+
+1. [How To Create RAID Arrays with mdadm](https://www.digitalocean.com/community/tutorials/how-to-create-raid-arrays-with-mdadm-on-ubuntu-16-04)
+
+## mktable
+
+mktable的效果如何回滚？利用dd工具。
+
+## dd工具
+
+利用dd工具可以很方便地将磁盘的分区label清除掉。
+
+一块磁盘我们可以通过parted工具将其分区都删除，但是它的label还是gpt或者dos，这可怎么删除呢？
+
+可以直接将磁盘全部清零。
+
+```shell
+[root@localhost /]# dd if=/dev/zero of=/dev/sdb bs=1024
+
+```
+
+这样，这块磁盘就啥都没有了，和你刚买回来的磁盘一样，里面都是空的。
 
 ## lvm
 

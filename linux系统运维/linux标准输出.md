@@ -1,10 +1,10 @@
 # linxu 标准输出 #
 
-我们在Linux下经常会碰到nohup command>/dev/null 2>&1 &这样形式的命令。
+我们在Linux下经常会碰到 `nohup command>/dev/null 2>&1 &`这样形式的命令。
 
-我们把这条命令大概分解下。
+这条命令大概分解下。
 
-首先就是一个nohup表示当前用户和系统的会话下的进程忽略响应HUP消息。&是把该命令以后台的job的形式运行。
+首先就是一个nohup表示当前用户和系统的会话下的进程忽略响应HUP消息。&是把该命令以后台job的形式运行。
 
 那么就剩下command>/dev/null 2>&1，command>/dev/null较好理解，/dev/null表示一个空设备，就是说吧command的执行结果重定向到空设备中，说白了就是不显示任何信息。那么2>&1又是什么含义?
 

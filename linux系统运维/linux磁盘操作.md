@@ -860,7 +860,7 @@ a.txt  b.txt  lost+found
 
 如果raid是由分区组成，那么清除对象就是分区；如果raid是由raw disk组成，那么清除对象就是raw disk。
 
-注意区分raid 的super block和前文提到的文件系统的super block。
+md有自己的superblock，注意区分raid 的superblock和前文提到的文件系统的superblock。
 
 raid的元信息（metadata）存储在哪儿呢？其实就是superblock。
 

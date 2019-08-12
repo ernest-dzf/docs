@@ -868,7 +868,7 @@ raid的元信息（metadata）存储在哪儿呢？其实就是superblock。
 
 >Starting with version 0.36 of the md driver  (kernel version 2.0.35), each disk in an array includes a superblock that describes array properties and stores them on each member disk.
 
-uperblock 的存在也让内核可以在系统启动的时候，自动组建raid阵列（mdadm.conf还有用么？）。
+superblock 的存在也让内核可以在系统启动的时候，自动组建raid阵列（mdadm.conf还有用么？）。
 
 ### 查看raid阵列的信息
 

@@ -18,11 +18,64 @@ mkfs -t ext4 /dev/nvme0n1
 
 ![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/chs_address.png)
 
-每个盘面都被划分为数目相等的磁道，并从外缘的“0”开始编号，具有相同编号的磁道形成一个圆柱，称之为磁盘的柱面（C）。磁盘的柱面数与一个盘面上的磁道数是相等的。
+每个盘面都被划分为数目相等的磁道，并从外缘的“0”开始编号，具有相同编号的磁道形成一个圆柱，称之为磁盘的柱面（C，cylinder）。磁盘的柱面数与一个盘面上的磁道数是相等的。
 
-由于每个盘面都有自己的磁头，因此，盘面数等于总的磁头数（H）。
+由于每个盘面都有自己的磁头，因此，盘面数等于总的磁头数（H，Head）。
 
-机械硬盘其实是通过CHS去寻址的。C-表示柱面，H-表示磁头，S-表示扇区。如果我们知道一个文件对应在硬盘上存储位置的CHS，那么我们就知道这个文件存储在哪里，也可以去对应的位置读取了。
+机械硬盘其实是通过CHS去寻址的。C-表示柱面，H-表示磁头，S-表示扇区（Sector）。如果我们知道一个文件对应在硬盘上存储位置的CHS，那么我们就知道这个文件存储在哪里，也可以去对应的位置读取了。
+
+那对于每个文件，我们必须有个地方存储这些地址信息。我们还必须知道哪些地址空间是free的，哪些是已经存了数据的。一个稳定件被删除的话，我们还得更新相关记录，……
+
+总之就会有一堆事情需要干，文件系统可以帮我们做这些繁琐的事情。
+
+## 文件系统的作用
+
+文件系统的作用主要体现在三个方面：
+
+1. **便于磁盘空间的管理**
+   想想，如果没有文件系统，对于每个文件，你得记住它放在哪个地址上，大小多大，权限属性是啥。后面删除了的话，你还得更新这段空间是删除了的。总之有一堆事情要干。
+   有了文件系统之后，我们不需要考虑这些是怎么存，怎么管理的了。
+
+1. **方便数据的组织和查找**
+   先感受下linux下文件的组织形式。
+
+   ```shell
+   [root@VM_144_188_centos ~]# tree -L 2
+   .
+   |-- Changelog
+   |-- curl-format.txt
+   |-- dmesg.log
+   |-- install
+   |   `-- monitor_agent_cloud_update-1.0.24-1.0.31-monitor_agent_cloud
+   |-- ldap_monitor.sh
+   |-- pam_ldap.so
+   |-- pprof
+   |   |-- pprof.cynosdb_agent.contentions.delay.001.pb.gz
+   |   |-- pprof.cynosdb_agent.samples.cpu.001.pb.gz
+   |   |-- pprof.cynosdb_agent.samples.cpu.002.pb.gz
+   |   `-- pprof.cynosdb_agent.samples.cpu.003.pb.gz
+   |-- services
+   |   |-- ars_tsc_tools -> /usr/local/services/ars_tsc_tools-1.0
+   |   |-- cloud_clear_disk -> /usr/local/services/cloud_clear_disk-1.0
+   |   |-- cloud_core_check -> /usr/local/services/cloud_core_check-1.0
+   |   `-- monitor_agent_cloud -> /usr/local/services/monitor_agent_cloud-1.0
+   |-- set_etcd.txt
+   `-- softinst.sh
+   
+   8 directories, 11 files
+   [root@VM_144_188_centos ~]# 
+   
+   ```
+
+   我们将所有数据组织成非常有条理的树形结构，使我们对数据有了很清晰的规划，也很方便后续查找我们想要的数据
+
+2. **提高磁盘空间的使用率**
+   如果没有文件系统，存储在磁盘中的数据，经过多次增删改查之后，会出现空间空洞。这些空洞是碎片化的，不能充分利用。比如你要存储一个大小为2G的文件，但是目前磁盘中最大的连续空间只有1.5G，虽然总的剩余空间有几十个G，但你还是不能存下这个2G的文件。
+   文件系统会对空洞和数据进行交换，从而生成比较大块的可用磁盘空间。
+
+
+
+
 
 总结一下记住这两点：
 

@@ -1,0 +1,17 @@
+hexdump -s 1024 -n 204 -e '
+13/4 "%d " "\n"  
+6/2 "%d " "\n" 
+4/4 "%d " "\n" 
+2/2 "%d " "\n"
+1/4 "%d " "\n" 
+2/2 "%d " "\n"
+3/4 "%d " "\n"
+"uuid = " 16/1 "%02x " "\n"
+"filesystem volume name = " 16/1 "%c" "\n"
+"last mounted dir = " 64/1 "%c" "\n"
+1/4 "%02x " "\n"
+' /dev/sdc 
+
+
+
+hexdump -s 1024 -n 204 -e '13/4 "%d " "\n"6/2 "%d " "\n"4/4 "%d " "\n"2/2 "%d " "\n"1/4 "%d " "\n"2/2 "%d " "\n"3/4 "%d " "\n""uuid = " 16/1 "%02x " "\n""filesystem volume name = " 16/1 "%c" "\n""last mounted dir = " 64/1 "%c" "\n"1/4 "%02x " "\n"' /dev/sdc

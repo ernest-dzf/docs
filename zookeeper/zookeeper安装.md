@@ -196,5 +196,31 @@ Mode: follower
 
 1. 文件系统
    Zookeeper维护一个类似文件系统的数据结构。
+   ![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/zk1.png)
 
-1. 通知机制
+   每个子目录项如 NameService 都被称作为 znode，和文件系统一样，我们能够自由地增加、删除znode，在一个znode下增加、删除子znode，唯一的不同在于znode是可以存储数据的。
+
+2. 通知机制
+
+   客户端注册监听它关心的目录节点，当目录节点发生变化（数据改变、被删除、子目录节点增加删除）时，zookeeper会通知客户端。
+
+## zookeeper的节点
+
+zk有多种不同的节点。
+
+- PERSISTENT-持久化目录节点
+- PERSISTENT_SEQUENTIAL-持久化顺序编号目录节点
+- EPHEMERAL-临时目录节点
+- EPHEMERAL_SEQUENTIAL-临时顺序编号目录节点
+
+
+
+## golang zookeeper客户端
+
+推荐使用go-zookeeper。
+
+## zookeeper版本号
+
+每一个znode都有一个版本号，它随着每次数据变化而自增。
+
+两个api操作`setData`和`delete`均以版本号作为入参，只有当传入参数的版本号与服务器上的版本号一致时，调用才会成功。当多个客户端对同一个zone进行操作时，版本的使用显得尤为重要。

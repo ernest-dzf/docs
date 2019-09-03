@@ -1,8 +1,4 @@
-# 常用software安装 #
-
-这里以centos 7为例。
-
-## tmux ##
+# tmux #
 
 1. ncurses-devel 需要安装。
 
@@ -91,22 +87,34 @@
 		$ 
 
 
-	- **固定window的名字** 
+- **固定window的名字** 
 	
 		有时候，想固定一个window的名字，可以这样
 	
-			# victordong @ VM_144_188_centos in ~ [23:47:41] 
-			$ cat .tmux.conf 
-			setw -g automatic-rename off
-			set-option -g allow-rename off
-			
-			# victordong @ VM_144_188_centos in ~ [23:52:36] 
-			$ 
+	```shell
+		# victordong @ VM_144_188_centos in ~ [23:47:41] 
+		$ cat .tmux.conf 
+		setw -g automatic-rename off
+		set-option -g allow-rename off
+		
+		# victordong @ VM_144_188_centos in ~ [23:52:36] 
+		$ 
+	```
 
 
-7. 参考文章
-	
-	[linux安装tmux](https://blog.csdn.net/lijing742180/article/details/80663878 "linux安装tmux")
 
-	[tmux终端复用详解](https://www.cnblogs.com/wangqiguo/p/8905081.html#_labelTop "tmux终端复用详解")
+7. 移动pane
+
+   可以使用`ctrl b {`或者`ctrl b }`在不同的pane之间移动。
+
+   
+
+8. 在不同的pane之间批量操作。
+   `ctrl b`，然后执行`: set synchronize-panes on`开启批量操作。
+
+8. 参考文章
+
+  [linux安装tmux](https://blog.csdn.net/lijing742180/article/details/80663878 "linux安装tmux")
+
+  [tmux终端复用详解](https://www.cnblogs.com/wangqiguo/p/8905081.html#_labelTop "tmux终端复用详解")
 

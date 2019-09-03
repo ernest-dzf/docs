@@ -144,7 +144,7 @@ struct ext2_super_block {
 	__le32	s_creator_os;		/* OS */
 	__le32	s_rev_level;		/* Revision level */
 	__le16	s_def_resuid;		/* Default uid for reserved blocks */
-	__le16	s_def_resgid;		/* Default gid for reserved blocks */
+	__le16	s_defq_resgid;		/* Default gid for reserved blocks */
 	/*
 	 * These fields are for EXT2_DYNAMIC_REV superblocks only.
 	 *
@@ -202,6 +202,15 @@ superblock总是位于偏移量1024字节开始，占用空间也是1024字节�
 
 ```shell
 hexdump -s 1024 -n 52 -e '1/4 "%-15d" 3/4 " %-15d" "\n"' /dev/sdc |less	
+```
+
+可以使用`e2label`修改文件系统的label。
+
+> e2label will display or change the filesystem label on the ext2, ext3, or ext4 filesystem
+
+```shell
+[root@localhost data6]# e2label /dev/sdc victor
+
 ```
 
 

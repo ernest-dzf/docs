@@ -231,6 +231,22 @@ zk有多种不同的节点。
 
 比如上图，客户端c1对znode `/config`写入了一些信息，如果另外一个客户端c2同时更新了这个znode，此时c1的版本号已经过期，c1调用`setData`一定会失败。
 
+## zk提供的API
+
+zk暴露了一些API，以让应用实现自己的原语。
+
+- create /path data，创建一个名为`/path`的znode节点，并包含数据data
+- delete /path，删除名为`/path`的znode
+- exists /path，检查是否存在名为`/path`的节点
+- setData /path data，设置名为`/path`的znode的数据为data
+- getData /path，返回名为`/path`节点的数据信息
+- getChildren /path，返回所有`/path`节点的所有子节点列表
+- ……
+
+
+
+zookeeper提供的api不止上面这些，详细的可以看官方的[文档](https://zookeeper.apache.org/doc/r3.4.6/api/org/apache/zookeeper/ZooKeeper.html)。
+
 ## zk的通知机制
 
 客户端在获取zk集群的znode数据时，可以不必去轮询这个znode 的数据。
@@ -241,4 +257,72 @@ zk有多种不同的节点。
 
 为了接收多个通知，客户端必须在每次通知之后，设置一个新的监视点。
 
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/zknotify.jpg)
+
+但是这种通知机制会丢失事件么？
+
+**是可能的**！
+
+怎么避免呢？
+
+用户可以在设置新的监视点前，读取zk的状态，这样就不会错误任何变更。
+
+读取zk和设置监视点是原子的操作（调用zk暴露的api，比如getData）。
+
+zookeeper的getData()，getChildren()和exists()方法都可以注册watcher监听。
+
+zookeeper的watch监听有以下特性：
+
+- 一次性触发（one-time trigger） 
+  当数据改变的时候，那么一个Watch事件会产生并且被发送到客户端中。但是客户端只会收到一次这样的通知，如果以后这个数据再次发生改变的时候，之前设置Watch的客户端将不会再次收到改变的通知，因为Watch机制规定了它是一个一次性的触发器。
+- 发送给客户端（Sent to the client）
+  这个表明了watch的通知事件是从服务器发送给客户端的，是异步的。不同的客户端收到的watch事件的时间可能不同，但是ZooKeeper有保证：当一个客户端在看到Watch事件之前是不会看到结点数据的变化的。
+  例如：A=3，此时在上面设置了一次Watch，如果A突然变成4，那么客户端会先收到Watch事件的通知，然后才会看到A=4。（**不同的客户端看到4的时间也不一样？？？**）
+- 被设置了watch的数据（The data for which the watch was set） 
+  这是指节点发生变动的不同方式。
+  你可以认为ZooKeeper维护了两个watch列表：data watch和child watch。getData()和exists()设置data watch，而getChildren()设置child watch。**或者，可以认为watch是根据返回值设置的**。getData()和exists()返回节点本身的信息，而getChildren()返回 子节点的列表。
+  因此，setData()会触发znode上设置的data watch（如果set成功的话）。一个成功的 create() 操作会触发被创建的znode上的数据watch，以及其父节点上的child watch。而一个成功的 delete()操作将会同时触发一个znode的data watch和child watch（因为这样就没有子节点了），同时也会触发其父节点的child watch。
+
+当client重新连接时，如果需要的话，所有先前注册过的watch，都会被重新注册。通常这是完全透明的。
+
+只有在一个特殊情况下，watch可能会丢失：对于一个未创建的znode的exist watch，如果在客户端断开连接期间被创建了，并且随后在客户端连接上之前又删除了，这种情况下，这个watch事件可能会被丢失。 
+
+### zookeeper对watch提供的保障
+
+对于watch，ZooKeeper提供了这些保障：
+
+- Watch与其他事件、其他watch以及异步回复都是有序的。 ZooKeeper客户端库保证所有事件都会按顺序分发。
+- 客户端会保障它在看到相应的znode的新数据之前接收到watch事件。
+- 从ZooKeeper接收到的watch事件顺序一定和ZooKeeper服务所看到的事件顺序是一致的。
+
 ## 两个客户端同时对znode进行操作？
+
+有版本号。
+
+## 会话
+
+当客户端通过某一个特定语言套件来创建一个zookeeper句柄时，他就会通过服务建立一个会话。
+
+当会话无法于当前连接的服务器继续通信时，会话就可能转移到另外一台服务器上。这个转移过程是透明的。
+
+客户端提供给zk的所有操作，均需要关联在一个会话上。当一个会话因某种原因终止时，这个会话期间创建的临时节点将会消失。
+
+**通常一个客户端只会打开一个会话。**会话提供了顺序保障，同一个会话中的请求会以FIFO顺序执行。
+
+### 会话的生命周期
+
+
+
+## zkCli.sh的操作
+
+### 创建节点
+
+`create [-s] [-e] path data acl`
+
+- -s，表示创建顺序节点
+- -e，表示创建临时节点
+
+### 删除节点
+
+`delete path [version]`
+

@@ -117,3 +117,33 @@ func main() {
 
 赋值后的结构图如下：
 
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/eface_fuzhi.png)
+
+
+
+我们通过实际代码验证下内存布局。
+
+#### 例子1
+
+```go
+package main
+
+import (
+	"fmt"
+	"unsafe"
+)
+type People struct {
+	Age		[2]byte
+}
+func main() {
+	var emptyInterface interface{}
+	var peo People
+	emptyInterface = peo
+	p := unsafe.Pointer(&emptyInterface)
+	typePtrVal := unsafe.Pointer(*((*uintptr)(p)))
+	structSize := *(*uintptr)(typePtrVal)
+	fmt.Print(structSize)
+}
+```
+
+输出为：2，表示结构体`People`的size大小。

@@ -247,6 +247,12 @@ zk暴露了一些API，以让应用实现自己的原语。
 
 zookeeper提供的api不止上面这些，详细的可以看官方的[文档](https://zookeeper.apache.org/doc/r3.4.6/api/org/apache/zookeeper/ZooKeeper.html)。
 
+客户端与zk集群通信时，采用zk规定的协议。可以理解为zk通过识别解析tcp的payload，来确定是什么请求。
+
+具体的请求有对应的opcode，如下：
+
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/zkopcode.png)
+
 ## zk的通知机制
 
 客户端在获取zk集群的znode数据时，可以不必去轮询这个znode 的数据。
@@ -311,7 +317,9 @@ zookeeper的watch监听有以下特性：
 
 ### 会话的生命周期
 
+会话状态转移如下：
 
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/session_state.jpg)
 
 ## zkCli.sh的操作
 
@@ -325,4 +333,27 @@ zookeeper的watch监听有以下特性：
 ### 删除节点
 
 `delete path [version]`
+
+## zookeeper的事件类型
+
+我们知道客户端可watch某一个事件，那么zk有哪些可以watch的事件呢？
+
+data events如下：
+
+| Trigger                                                      | Event Type                              | Watches                                                      |
+| ------------------------------------------------------------ | --------------------------------------- | ------------------------------------------------------------ |
+| [ZooKeeper.create](http://zookeeper.apache.org/doc/r3.4.8/api/org/a/pache/zookeeper/ZooKeeper.html#create-java.lang.String-byte:A-java.util.List-org.apache.zookeeper.CreateMode-) | Watcher.Event.EventType.NodeCreated     | [ZooKeeper.exists](http://zookeeper.apache.org/doc/r3.4.8/api/org/apache/zookeeper/ZooKeeper.html#exists-java.lang.String-boolean-)<br>[ZooKeeper.getData](http://zookeeper.apache.org/doc/r3.4.8/api/org/apache/zookeeper/ZooKeeper.html#getData-java.lang.String-boolean-org.apache.zookeeper.AsyncCallback.DataCallback-java.lang.Object-) |
+| [ZooKeeper.setData](http://zookeeper.apache.org/doc/r3.4.8/api/org/apache/zookeeper/ZooKeeper.html#setData-java.lang.String-byte:A-int-) | Watcher.Event.EventType.NodeDataChanged | [ZooKeeper.getData](http://zookeeper.apache.org/doc/r3.4.8/api/org/apache/zookeeper/ZooKeeper.html#getData-java.lang.String-boolean-org.apache.zookeeper.AsyncCallback.DataCallback-java.lang.Object-) |
+| [ZooKeeper.delete](http://zookeeper.apache.org/doc/r3.4.8/api/org/apache/zookeeper/ZooKeeper.html#delete-java.lang.String-int-) | Watcher.Event.EventType.NodeDeleted     | [ZooKeeper.exists](http://zookeeper.apache.org/doc/r3.4.8/api/org/apache/zookeeper/ZooKeeper.html#exists-java.lang.String-boolean-) |
+|                                                              |                                         |                                                              |
+|                                                              |                                         |                                                              |
+
+child events 如下：
+
+| Trigger                                                      | Event Type                                  | Watches                                                      |
+| ------------------------------------------------------------ | ------------------------------------------- | ------------------------------------------------------------ |
+| [ZooKeeper.create](http://zookeeper.apache.org/doc/r3.4.8/api/org/apache/zookeeper/ZooKeeper.html#create-java.lang.String-byte:A-java.util.List-org.apache.zookeeper.CreateMode-) | Watcher.Event.EventType.NodeChildrenChanged | [ZooKeeper.getChildren](http://zookeeper.apache.org/doc/r3.4.8/api/org/apache/zookeeper/ZooKeeper.html#getChildren-java.lang.String-boolean-) |
+| [ZooKeeper.delete](http://zookeeper.apache.org/doc/r3.4.8/api/org/apache/zookeeper/ZooKeeper.html#delete-java.lang.String-int-) | Watcher.Event.EventType.NodeChildrenChanged | [ZooKeeper.exists](http://zookeeper.apache.org/doc/r3.4.8/api/org/apache/zookeeper/ZooKeeper.html#exists-java.lang.String-boolean-)<br>[ZooKeeper.getChildren](http://zookeeper.apache.org/doc/r3.4.8/api/org/apache/zookeeper/ZooKeeper.html#getChildren-java.lang.String-boolean-) |
+
+session events如下：
 

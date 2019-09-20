@@ -147,3 +147,4 @@ func main() {
 ```
 
 输出为：2，表示结构体`People`的size大小。
+

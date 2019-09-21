@@ -148,3 +148,10 @@ func main() {
 
 输出为：2，表示结构体`People`的size大小。
 
+1. `p`表示`emptyInterface`的地址
+2. `typePtrVal`表示eface结构体中第一个field的值
+3. `structSize`表示_type结构体中第一个field的值，也就是`People`的type size
+
+可以试着将`Age`改为`[4]byte`，最终输出结果也是符合预期的。
+
+上面验证了interface{}的内存布局。

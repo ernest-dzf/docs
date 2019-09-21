@@ -90,14 +90,14 @@ golang的map中用于存储的实际上是`bucket`数组。那么`bucket`的结�
 	+-----+  hash function:f()   +------------+     +--------------------------+
 	| key | -------------------> | hash value | --> | high 8 bits|low 2^B bits |
 	+-----+                      +------------+     +--------------------------+
-	
+
 
 
 1. 首先使用哈希函数处理key值，得到key的哈希值。
 2. 用key的hash值的低2^B（这里的B指的是hmap中的字段B）位去buckets数组找到对应的bucket，暂定为bucket[m]。
 3. 利用hash值的高8位去依次比对tophash[0]~tophash[7]。如果找到对应的tophash[i]和key的hash值的高8位一样，然后再根据i和key占用字节的大小，计算出keyi的地址是多少，取出来和key值比对，一样的话，说明确实找到了。
 
-## map 扩容##
+## map 扩容
 
 当哈希表增长的时候，Go语言会将bucket数组的数量扩充一倍，产生一个新的bucket数组，并将旧数组的数据迁移至新数组。
 

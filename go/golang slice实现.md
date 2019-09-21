@@ -1,5 +1,5 @@
 # golang slice实现 #
-## slice结构##
+## slice结构
 
 先来看下slice的结构。
 

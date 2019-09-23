@@ -154,4 +154,33 @@ func main() {
 
 可以试着将`Age`改为`[4]byte`，最终输出结果也是符合预期的。
 
-上面验证了interface{}的内存布局。
+#### 例子2
+
+```go
+package main
+
+import (
+	"fmt"
+	"unsafe"
+)
+type People struct {
+	First	int8
+	Second	int32
+}
+func main() {
+	var emptyInterface interface{}
+	var peo People
+	emptyInterface = peo
+	p := unsafe.Pointer(&emptyInterface)
+	typePtrVal := unsafe.Pointer(*((*uintptr)(p)))
+	ptralign := unsafe.Pointer(uintptr(typePtrVal) + uintptr(21))
+	align := *(*int8)(ptralign)
+	fmt.Print(align)
+}
+```
+
+输出为：4
+
+例子2打印出结构体`People`字节对齐情况，表示按照4字节对齐。
+
+21表示`fieldalign`字段在结构_type的地址偏移。

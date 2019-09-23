@@ -36,3 +36,5 @@ size = 24
 ```
 
 虽然Uin字段是一个字节，但是需要字节对齐，所以以8字节对齐后，Qu的size是24字节。整体内存布局如下：
+
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/struct_layout.png)

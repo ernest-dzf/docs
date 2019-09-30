@@ -52,6 +52,8 @@ type _type struct {
     str       nameOff  // string form
     ptrToThis typeOff  // type for pointer to this type, may be zero
 }
+var tflag uint8
+var nameOff int32
 ```
 
 一共有两个属性构成，一个是类型信息`_type`，一个是数据信息`data`。
@@ -184,3 +186,73 @@ func main() {
 例子2打印出结构体`People`字节对齐情况，表示按照4字节对齐。
 
 21表示`fieldalign`字段在结构_type的地址偏移。
+
+#### 例子3
+
+```go
+package main
+
+import (
+	"fmt"
+	"unsafe"
+)
+func main() {
+	var emptyInterface interface{}
+	var num int64 = -12
+	emptyInterface = num
+	dataPtr := *((*uintptr)(unsafe.Pointer(uintptr(unsafe.Pointer(&emptyInterface)) + uintptr(8))))
+	fmt.Println("emptyInterface's data = ", *(*int64)(unsafe.Pointer(uintptr(dataPtr))))
+}
+```
+
+输出：
+
+```
+emptyInterface's data =  -12
+```
+
+上面例子我们通过指针打印出了emptyInterface中data指针指向的数据的值，刚好和变量`num`的值一样。
+
+#### data数据存在哪儿？
+
+对于`interrace{}`类型的变量，它的data指针指向的数据存在哪儿呢？
+
+**存在堆中的！**
+
+想想也应该存在堆中，设想如果一个变量`var emptyInterface interface{}`在代码中不断地被赋值，那么它的data指针也是不断指向内存中不同区域的。也就是说需要开辟不同的内存区域用于存放真实的数据。所以data指向的数据肯定是在堆中。
+
+data中的内容会根据实际情况变化，因为golang在函数传参和赋值时都是**值传递**的。
+
+- 如果实际类型是一个**值**，那么interface会保存这个值的一份拷贝。interface会在堆中为这个值分配一块内存。
+- 如果实际类型是一个**指针**，那么interface会保存这个指针的一份拷贝。由于data的长度恰好能保存这个指针的内容，所以data存储的就是指针的值。它和实际数据指向的是同一个变量。
+
+
+
+### iface
+
+iface表示有方法的interface。
+
+```go
+type iface struct {
+    tab  *itab
+    data unsafe.Pointer
+}
+type itab struct {
+    inter  *interfacetype
+    _type  *_type
+    link   *itab
+    hash   uint32
+    bad    bool
+    inhash bool
+    unused [2]byte
+    fun    [1]uintptr
+}
+
+// interface数据类型对应的type
+type interfacetype struct {
+    typ     _type
+    pkgpath name
+    mhdr    []imethod
+}
+```
+

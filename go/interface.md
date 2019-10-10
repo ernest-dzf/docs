@@ -226,6 +226,8 @@ data中的内容会根据实际情况变化，因为golang在函数传参和赋�
 - 如果实际类型是一个**值**，那么interface会保存这个值的一份拷贝。interface会在堆中为这个值分配一块内存。
 - 如果实际类型是一个**指针**，那么interface会保存这个指针的一份拷贝。由于data的长度恰好能保存这个指针的内容，所以data存储的就是指针的值。它和实际数据指向的是同一个变量。
 
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/eface3.png)
+
 
 
 ### iface

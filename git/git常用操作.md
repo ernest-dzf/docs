@@ -1,5 +1,31 @@
 # git常用操作 #
 
+## git代理
+
+- 查看当前代理
+
+  ```
+  git config --global http.proxy
+  ```
+
+  
+
+- 设置当前代理
+
+  ```ht
+  git config --global http.proxy 'http://127.0.0.1:1080'
+  git config --global https.proxy 'https://127.0.0.1:1080'
+  ```
+
+- 删除代理
+
+  ```
+  git config --global --unset http.proxy
+  git config --global --unset https.proxy
+  ```
+
+  
+
 ## 创建分支 ##
 
 	victordong@victordong-pc0 MINGW64 /d/code/liaoning_tdsql_shark (dev-victor)
@@ -64,7 +90,7 @@
 	
 	victordong@victordong-pc0 MINGW64 /d/code/liaoning_tdsql_shark (dev-victor)
 	$
-	
+
 ## 添加远程仓库 ##
 
 ## 推送到远端 ##
@@ -164,13 +190,13 @@ upstream与有几个远程库没有关系，它是分支与分支之间的流通
 	
 	# victor @ VICTORDONG-MB0 in ~/github/notes on git:master x [2:05:34]
 	$ git add git常用操作.md
-	
+
 ## git commit ##
 提交
 
 	# victor @ VICTORDONG-MB0 in ~/github/notes on git:master x [2:08:18] 
 	$ git commit -m 'description'
-	
+
 ## git checkout ##
 
 modified的文件，使用`git checkout -- <file>`命令可以将更改丢弃。

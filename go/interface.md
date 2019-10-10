@@ -256,3 +256,6 @@ type interfacetype struct {
 }
 ```
 
+## 参考
+
+1. http://c.biancheng.net/view/5116.html

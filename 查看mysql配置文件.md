@@ -46,7 +46,17 @@ my.cnf是mysql启动时加载的配置文件，一般会放在mysql的安装目�
 	# victor @ localhost in ~ [4:52:31] 
 	$ 
 
-上面可以看到，并没有使用指定的配置文件
+上面可以看到，并没有使用指定的配置文件。
+
+可以通过`defaults-file`来指定配置文件。
+
+	# root @ localhost in ~ [0:48:30] 
+	$ mysql --help | grep defaults-file
+	--defaults-file=#       Only read default options from the given file #.
+	
+	# root @ localhost in ~ [0:48:46] 
+	$ 
+
 
 ## 查看mysql默认读取配置文件的目录 ##
 
@@ -66,3 +76,7 @@ my.cnf是mysql启动时加载的配置文件，一般会放在mysql的安装目�
 如果没有设置使用指定目录配置文件及默认读取目录没有my.cnf文件，表示mysql启动时并没有加载配置文件，而是使用默认配置。
 
 需要修改配置，可以在mysql默认读取的目录中，创建一个my.cnf文件(例如:/etc/my.cnf)，把需要修改的配置内容写入，重启mysql后即可生效。
+
+## 配置文件的生效顺序 ##
+
+如果这些配置文件`/etc/my.cnf /etc/mysql/my.cnf /usr/local/mysql/etc/my.cnf ~/.my.cnf`都存在，那么后面的会覆盖前面的，都会生效。

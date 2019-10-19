@@ -3,6 +3,7 @@
 
 ![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/rsync_inotify.png)
 
+<<<<<<< Updated upstream
 ## rsync ##
 rsync是一个远程数据同步工具。
 
@@ -86,3 +87,24 @@ rsync最重要的就是配置文件。先来看一下官方给的一个例子，
 	$ 
 
 rsync.sh的作用就是利用inotify实时监控文件的变化，并在文件有被更改的时候，利用rsync将变动同步到服务器A。
+=======
+## inotify安装 ##
+1. 下载，https://sourceforge.net/projects/inotify-tools/
+2. 安装
+
+		./configure && make && make install
+
+	可能有权限问题，sudo一下或者直接用root。
+
+	安装好后，会有这两个东西inotifywait和inotifywatch，默认安装目录是`/usr/local/bin`
+
+		# victor @ localhost in ~ [22:11:37] 
+		$ ls /usr/local/bin/inotify*   
+		/usr/local/bin/inotifywait  /usr/local/bin/inotifywatch
+		
+		# victor @ localhost in ~ [22:13:55] 
+		$ 
+### rsync安装 ###
+
+rsync一般默认已经安装，如果没有的话，用yum安装一下。
+>>>>>>> Stashed changes

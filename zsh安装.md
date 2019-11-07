@@ -3,14 +3,15 @@
 
 1. yum install zsh。
 2. 修改账户的默认shell。
-
-		usermod -s /bin/zsh victor
+	```
+	usermod -s /bin/zsh victor
+	```
 3. 重新以victor账户登录，查看是否更改成功。
-
-		# victor @ localhost in ~ [9:26:06] C:1
-		$ echo $0
-		-zsh
-		
+	```
+	# victor @ localhost in ~ [9:26:06] C:1
+	$ echo $0
+	-zsh
+	```
 
 	可以看到，当前使用的shell已经是zsh。
 
@@ -27,13 +28,12 @@ zsh配合oh-my-zsh使用更佳。
 1. `yum install git`
 2. `sh -c "$(curl -fsSL https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh)"`
 3. 修改主题
-
-		……
-		# See https://github.com/robbyrussell/oh-my-zsh/wiki/Themes
-		ZSH_THEME="ys"
-		
-		# Set list of themes to pick from when loading at random
-		……
+	```
+	# See https://github.com/robbyrussell/oh-my-zsh/wiki/Themes
+	ZSH_THEME="ys"
+	
+	# Set list of themes to pick from when loading at random
+	```
 4. 退出重新登陆即可
 
 上面为victor用户安装了oh-my-zsh，如果需要root用户也可以用到的话，需要修改root用户的默认shell，方法也是利用usermod命令。
@@ -136,28 +136,30 @@ autojump是一个命令行工具，它允许你可以直接跳转到你喜爱的
 			autoload -U compinit && compinit -u
 		
 		Please restart terminal(s) before running autojump.
-		
-		
-		# victor @ localhost in ~/autojump on git:master o [14:59:12] 
-		$ 
-
+	
+	
+	​	
+	​	# victor @ localhost in ~/autojump on git:master o [14:59:12] 
+	$ 
+	
 	安装过程有提示说，让在.zshrc文件中添加几行，其实没必要。我们只需要在plugins中设置加载autojump即可。这在后面有介绍。
 	
-	安装完成后，还需要把autojump加入到系统PATH目录中去，在.zshrc开头加入如下一行：
 
-		export ZSH="/home/victor/.oh-my-zsh"
+安装完成后，还需要把autojump加入到系统PATH目录中去，在.zshrc开头加入如下一行：
+	
+	export ZSH="/home/victor/.oh-my-zsh"
 
-	退出重新登录账户，然后验证一下：
-
+退出重新登录账户，然后验证一下：
+	
 		# victor @ localhost in ~/autojump on git:master o [12:52:32] 
 		$ autojump -v
 		autojump v22.5.3
 		
 		# victor @ localhost in ~/autojump on git:master o [12:52:34] 
-		$ 
+	$ 
 
-	如果提示找不到命令的话，需要查看下PATH路径是不是加错了。
-
+如果提示找不到命令的话，需要查看下PATH路径是不是加错了。
+	
 2. 设置.zshrc文件
 
 	编辑.zshrc文件，找到类似下面的几行
@@ -217,7 +219,7 @@ autojump是一个命令行工具，它允许你可以直接跳转到你喜爱的
 	
 
 		autojump.plugin.zsh会去检查`autojump`这个命令是否存在，存在的话，才会去加载autojump。
-
+		
 		加载的动作其实就是去执行`$HOME/.autojump/etc/profile.d/autojump.zsh`这个文件。这个和我们上面执行`./install.py`时,提示我们在.zshrc中加几行代码是一样的。所以我上面说没必要再在.zshrc中加那几行代码。
 
 	- 为所有用户安装了autojump，也就是`./install.py -s`

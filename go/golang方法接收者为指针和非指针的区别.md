@@ -1,7 +1,7 @@
 # golang方法接收者为指针和非指针的区别 #
 
 方法接收者为指针，我们可以通过方法改变该接收者的属性
-
+```
 	package main
 	
 	import "fmt"
@@ -28,8 +28,8 @@
 		fmt.Println("M2调用前：", t1.Name)
 		t1.M2()
 		fmt.Println("M2调用后：", t1.Name)
-}
-	
+	}
+```
 输出为：
 		
 	M1调用前： t1
@@ -38,8 +38,6 @@
 	M2调用后： name2
 
 上面例子可以看到，`M2`方法更改了接收者的属性；而`M1`方法没有更改接收者的属性。区别是一个接收者是指针，一个接收者不是指针。
-	
-	
 	
 先来约定一下：接收者可以看作是函数的第一个参数，即这样的：`func M1(t T)`, `func M2(t *T)`。 
 
@@ -55,28 +53,27 @@
 下面声明一个 *T 类型的变量，并调用 M1() 和 M2() 。
 
     t2 := &T{"t2"}
-
+    
     fmt.Println("M1调用前：", t2.Name)
     t2.M1()
     fmt.Println("M1调用后：", t2.Name)
-
+    
     fmt.Println("M2调用前：", t2.Name)
     t2.M2()
     fmt.Println("M2调用后：", t2.Name)
-    
+
 输出结果为：
 
 	M1调用前： t2
 	M1调用后： t2
 	M2调用前： t2
 	M2调用后： name2
-	
+
 t2.M1() => M1(t2)， t2 是指针类型， 取 t2 的值并拷贝一份传给 M1。
 
 t2.M2() => M2(t2)，都是指针类型，不需要转换。
 
 *T 类型的变量也是拥有这两个方法的。
-
 
 **对于类型A来说，如果他的对象实现了方法F，那么他的指针也实现了方法F；**
 
@@ -115,10 +112,48 @@ t2.M2() => M2(t2)，都是指针类型，不需要转换。
 		t3.M1()
 		t2.M1()
 	}
-	
+
 `&t1`作为指针，被认为实现了`M1`和`M2`方法（`M2`方法的接收者为对象，而不是指针）。
 
 `t1`作为对象，并不被认为实现了`M1`方法。
+
+但是：
+
+**无论某个方法的Receiver是对象（值）还是指针，都可以通过对象（值）或者指针来进行方法调用。**
+
+再仔细想一想也是非常合理的，因为Go内部可以轻松地找到一个对象（值）的地址，自然就能构建出指向它的指针（`&obj`），调用Receiver为指针的方法；另外也很容易通过指针找到其指向的对象（值）（`*p`），自然也能轻松调用Receiver为对象（值）的方法。
+
+**但是当你拥有一个对象的时候，你是可能拿不到这个对象的地址的！！**
+
+比如，
+
+```go
+ // Sample program to show how you can't always get the
+ // address of a value.
+ package main
+
+ import "fmt"
+
+ // duration is a type with a base type of int.
+ type duration int
+
+ // format pretty-prints the duration value.
+ func (d *duration) pretty() string {
+     return fmt.Sprintf("Duration: %d", *d)
+ }
+
+ // main is the entry point for the application.
+ func main() {
+	 var x duration
+	 x = 42
+	 fmt.Println(x.pretty())
+
+     duration(42).pretty()
+
+     // cannot call pointer method on duration(42)
+     // cannot take the address of duration(42)
+ }
+```
 
 
 
@@ -167,7 +202,7 @@ t2.M2() => M2(t2)，都是指针类型，不需要转换。
 	
 		fmt.Println("t1.Name = ", t1.Name)
 	}
-	
+
 将 T 嵌入 S， 那么 T 拥有的方法和属性 S 也是拥有的，但是接收者却不是 S 而是 T。
 
 所以 s.M1() 相当于 M1(t1) 而不是 M1(s)。

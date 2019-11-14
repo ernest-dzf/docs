@@ -1,4 +1,4 @@
-[toc]
+[TOC]
 # mysql权限 #
 ## all privileges权限 ##
 
@@ -143,7 +143,7 @@
 
 可以看到，基于`*.*`的all privileges 比基于某个库的all privileges多了一些权限。
 
-	
+​	
 
 	RELOAD, SHUTDOWN, PROCESS, FILE, SHOW DATABASES, SUPER, REPLICATION SLAVE, REPLICATION CLIENT, CREATE USER, CREATE TABLESPACE 
 

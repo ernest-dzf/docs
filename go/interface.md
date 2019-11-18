@@ -43,13 +43,13 @@ type _type struct {
     size       uintptr // type size
     ptrdata    uintptr // size of memory prefix holding all pointers
     hash       uint32  // hash of type; avoids computation in hash tables
-    tflag      tflag   // extra type information flags
+    tflag      tflag   // extra type information flags, 一个字节
     align      uint8   // alignment of variable with this type
     fieldalign uint8   // alignment of struct field with this type
     kind       uint8   // enumeration for C
-    alg        *typeAlg  // algorithm table
+    alg        *typeAlg  // algorithm table，8字节
     gcdata    *byte    // garbage collection data
-    str       nameOff  // string form
+    str       nameOff  // string form，4个字节
     ptrToThis typeOff  // type for pointer to this type, may be zero
 }
 var tflag uint8
@@ -277,6 +277,234 @@ type moduledata struct {
 
 	next *moduledata
 }
+```
+
+
+
+```go
+reflect.TypeOf(eface).Name()
+type name struct {
+	bytes *byte
+}//https://golang.org/src/internal/reflectlite/type.go?h=resolveName
+// TypeOf returns the reflection Type that represents the dynamic type of i.
+// If i is a nil interface value, TypeOf returns nil.
+func TypeOf(i interface{}) Type {
+	eface := *(*emptyInterface)(unsafe.Pointer(&i))
+	return toType(eface.typ)
+}//https://golang.org/src/internal/reflectlite/type.go?h=func+TypeOf
+
+func (t *rtype) Name() string {
+	if t.tflag&tflagNamed == 0 {
+		return ""
+	}
+	s := t.String()
+	i := len(s) - 1
+	for i >= 0 && s[i] != '.' {
+		i--
+	}
+	return s[i+1:]
+}//https://golang.org/src/internal/reflectlite/type.go?h=Name%28%29
+
+// rtype is the common implementation of most values.
+// It is embedded in other struct types.
+//
+// rtype must be kept in sync with ../runtime/type.go:/^type._type.
+type rtype struct {
+	size       uintptr
+	ptrdata    uintptr  // number of bytes in the type that can contain pointers
+	hash       uint32   // hash of type; avoids computation in hash tables
+	tflag      tflag    // extra type information flags
+	align      uint8    // alignment of variable with this type
+	fieldAlign uint8    // alignment of struct field with this type
+	kind       uint8    // enumeration for C
+	alg        *typeAlg // algorithm table
+	gcdata     *byte    // garbage collection data
+	str        nameOff  // string form
+	ptrToThis  typeOff  // type for pointer to this type, may be zero
+}//https://golang.org/src/reflect/type.go?h=rtype#L299
+
+func (t *rtype) String() string {
+	s := t.nameOff(t.str).name()
+	if t.tflag&tflagExtraStar != 0 {
+		return s[1:]
+	}
+	return s
+}//https://golang.org/src/reflect/type.go?h=rtype#L299
+
+func (t *rtype) nameOff(off nameOff) name {
+	return name{(*byte)(resolveNameOff(unsafe.Pointer(t), int32(off)))}
+}//https://golang.org/src/reflect/type.go?h=rtype#L299
+
+func resolveNameOff(ptrInModule unsafe.Pointer, off nameOff) name {
+	if off == 0 {
+		return name{}
+	}
+	base := uintptr(ptrInModule)
+	for md := &firstmoduledata; md != nil; md = md.next {
+		if base >= md.types && base < md.etypes {
+			res := md.types + uintptr(off)
+			if res > md.etypes {
+				println("runtime: nameOff", hex(off), "out of range", hex(md.types), "-", hex(md.etypes))
+				throw("runtime: name offset out of range")
+			}
+			return name{(*byte)(unsafe.Pointer(res))}
+		}
+	}
+
+	// No module found. see if it is a run time name.
+	reflectOffsLock()
+	res, found := reflectOffs.m[int32(off)]
+	reflectOffsUnlock()
+	if !found {
+		println("runtime: nameOff", hex(off), "base", hex(base), "not in ranges:")
+		for next := &firstmoduledata; next != nil; next = next.next {
+			println("\ttypes", hex(next.types), "etypes", hex(next.etypes))
+		}
+		throw("runtime: name offset base pointer out of range")
+	}
+	return name{(*byte)(res)}
+}//https://golang.org/src/runtime/type.go?h=resolveNameOff#L180
+
+var firstmoduledata moduledata  // linker symbol
+// moduledata records information about the layout of the executable
+
+// image. It is written by the linker. Any changes here must be
+
+// matched changes to the code in cmd/internal/ld/symtab.go:symtab.
+
+// moduledata is stored in statically allocated non-pointer memory;
+
+// none of the pointers here are visible to the garbage collector.
+
+type moduledata struct {
+
+	pclntable    []byte
+
+	ftab         []functab
+
+	filetab      []uint32
+
+	findfunctab  uintptr
+
+	minpc, maxpc uintptr
+
+
+	text, etext           uintptr
+
+	noptrdata, enoptrdata uintptr
+
+	data, edata           uintptr
+
+	bss, ebss             uintptr
+
+	noptrbss, enoptrbss   uintptr
+
+	end, gcdata, gcbss    uintptr
+
+	types, etypes         uintptr
+
+
+	textsectmap []textsect
+
+	typelinks   []int32 // offsets from types
+
+	itablinks   []*itab
+
+
+	ptab []ptabEntry
+
+
+	pluginpath string
+
+	pkghashes  []modulehash
+
+
+	modulename   string
+
+	modulehashes []modulehash
+
+
+	hasmain uint8 // 1 if module contains the main function, 0 otherwise
+
+
+	gcdatamask, gcbssmask bitvector
+
+
+	typemap map[typeOff]*_type // offset to *_rtype in previous module
+
+
+	bad bool // module failed to load and should be ignored
+
+
+	next *moduledata
+
+}
+```
+
+
+
+元信息会在运行期，加载到`runtime.moduledata`结构体中，由谁进行加载呢？根据哪些信息加载到moduledata里面去呢？
+
+
+
+`firstmoduledata`是runtime包的符号。
+
+通过`readelf -s main`可以获取它的地址。
+
+```
+	 ...
+	 164: 00000000004dac70    24 OBJECT  GLOBAL DEFAULT    2 runtime.debugCallWrap.stk
+   165: 000000000054f1a0   456 OBJECT  GLOBAL DEFAULT    9 runtime.firstmoduledata
+   166: 000000000055e640    24 OBJECT  GLOBAL DEFAULT   11 runtime.envs
+   ...
+```
+
+那么`firstmoduledata`是位于哪个section呢？
+
+通过`readelf -S main`得知，`.noptrdata`段的起始地址为`000000000054a020`。而`firstmoduledata`的地址为`000000000054f1a0`。猜测`firstmoduledata`位于`.noptrdata`段。
+
+```
+  ...
+  [ 8] .go.buildinfo     PROGBITS         000000000054a000  0014a000
+       0000000000000020  0000000000000000  WA       0     0     16
+  [ 9] .noptrdata        PROGBITS         000000000054a020  0014a020
+       000000000000d0f8  0000000000000000  WA       0     0     32
+  [10] .data             PROGBITS         0000000000557120  00157120
+       0000000000007050  0000000000000000  WA       0     0     32
+  ...
+```
+
+使用gdb调试`main`文件。（）
+
+```
+(gdb) info symbol 0x54f1a0
+runtime.firstmoduledata in section .noptrdata
+(gdb)
+```
+
+验证确实是在`.noptrdata`段。
+
+可以查看每个section的起始地址和大小。
+
+```
+(gdb) info files
+Symbols from "/root/code/src/main/main".
+Local exec file:
+        `/root/code/src/main/main', file type elf64-x86-64.
+        Entry point: 0x454dd0
+        0x0000000000401000 - 0x000000000048d301 is .text
+        0x000000000048e000 - 0x00000000004dd758 is .rodata
+        0x00000000004dd920 - 0x00000000004de590 is .typelink
+        0x00000000004de590 - 0x00000000004de5e0 is .itablink
+        0x00000000004de5e0 - 0x00000000004de5e0 is .gosymtab
+        0x00000000004de5e0 - 0x0000000000549ca3 is .gopclntab
+        0x000000000054a000 - 0x000000000054a020 is .go.buildinfo
+        0x000000000054a020 - 0x0000000000557118 is .noptrdata
+        0x0000000000557120 - 0x000000000055e170 is .data
+        0x000000000055e180 - 0x00000000005799f0 is .bss
+        0x0000000000579a00 - 0x000000000057c168 is .noptrbss
+        0x0000000000400f9c - 0x0000000000401000 is .note.go.buildid
+(gdb)
 ```
 
 

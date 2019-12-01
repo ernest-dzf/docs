@@ -58,7 +58,7 @@ var nameOff int32
 
 一共有两个属性构成，一个是类型信息`_type`，一个是数据信息`data`。
 
-对于 Golang 中的大部分数据类型都可以抽象出来 _type 结构，同时针对不同的类型还会有一些其他信息。
+对于 Golang 中的大部分数据类型都可以抽象出来 `_type` 结构，同时针对不同的类型还会有一些其他信息。
 
 eface的整体结构如下：
 
@@ -232,82 +232,61 @@ data中的内容会根据实际情况变化，因为golang在函数传参和赋�
 
 我们看到`_type`类型有一个`str`字段，类型为`nameOff`。`nameOff`底层类型为`int32`。
 
-这个值是链接器负责嵌入的，相对于可执行文件的元信息的偏移量。元信息会在运行期间，加载到`runtime.moduledata`结构体中（`src/runtime/symtab.go`）
+这个值在编译期间就被确定了，相对于可执行文件的元信息的偏移量。元信息会在运行期间，加载到`runtime.moduledata`结构体中（`src/runtime/symtab.go`）
+
+
+为了探究`nameoff`背后的机制，顺带探究下golang 的反射机制，我们以下面这个例子说明。
 
 ```go
-// moduledata records information about the layout of the executable
-// image. It is written by the linker. Any changes here must be
-// matched changes to the code in cmd/internal/ld/symtab.go:symtab.
-// moduledata is stored in statically allocated non-pointer memory;
-// none of the pointers here are visible to the garbage collector.
-type moduledata struct {
-	pclntable    []byte
-	ftab         []functab
-	filetab      []uint32
-	findfunctab  uintptr
-	minpc, maxpc uintptr
 
-	text, etext           uintptr
-	noptrdata, enoptrdata uintptr
-	data, edata           uintptr
-	bss, ebss             uintptr
-	noptrbss, enoptrbss   uintptr
-	end, gcdata, gcbss    uintptr
-	types, etypes         uintptr
+package main
 
-	textsectmap []textsect
-	typelinks   []int32 // offsets from types
-	itablinks   []*itab
+import (
+	"fmt"
+	"reflect"
+)
 
-	ptab []ptabEntry
+type TestNameOff struct {
+	Id		int64
+	Name	string
+}
 
-	pluginpath string
-	pkghashes  []modulehash
-
-	modulename   string
-	modulehashes []modulehash
-
-	hasmain uint8 // 1 if module contains the main function, 0 otherwise
-
-	gcdatamask, gcbssmask bitvector
-
-	typemap map[typeOff]*_type // offset to *_rtype in previous module
-
-	bad bool // module failed to load and should be ignored
-
-	next *moduledata
+func main() {
+	obj := TestNameOff{}
+	var eface  interface{}
+	eface = obj
+	typeName := reflect.TypeOf(eface).Name()
+	fmt.Println("typeName = ", typeName)
 }
 ```
 
+`reflect.TypeOf`返回一个`Type`接口类型，这个接口类型有一系列的Method，通过这些Method可以获取到入参`i`（`interface{}`类型）的一些有关类型方面的特征。（详细的Method见https://golang.org/pkg/reflect/#Type）
 
+比如我们可以通过`reflect.TypeOf(eface).Name()`获取到`eface`的Concrete Type 类型名称是`TestNameOff`（上面的例子）。
+
+我们查看`TypeOf`的实现源码，
 
 ```go
-reflect.TypeOf(eface).Name()
-type name struct {
-	bytes *byte
-}//https://golang.org/src/internal/reflectlite/type.go?h=resolveName
+//src\reflect\type.go
+
 // TypeOf returns the reflection Type that represents the dynamic type of i.
 // If i is a nil interface value, TypeOf returns nil.
 func TypeOf(i interface{}) Type {
-	eface := *(*emptyInterface)(unsafe.Pointer(&i))
-	return toType(eface.typ)
-}//https://golang.org/src/internal/reflectlite/type.go?h=func+TypeOf
+	eface := *(*emptyInterface)(unsafe.Pointer(&i)) 
+	return toType(eface.typ)    
+}
 
-func (t *rtype) Name() string {
-	if t.tflag&tflagNamed == 0 {
-		return ""
+func toType(t *rtype) Type {
+	if t == nil {
+		return nil
 	}
-	s := t.String()
-	i := len(s) - 1
-	for i >= 0 && s[i] != '.' {
-		i--
-	}
-	return s[i+1:]
-}//https://golang.org/src/internal/reflectlite/type.go?h=Name%28%29
+	return t
+}
+```
 
-// rtype is the common implementation of most values.
-// It is embedded in other struct types.
-//
+可以看到其实就是一个强制类型转换，将其转换为`*rtype`类型。（https://golang.org/src/reflect/type.go?h=rtype#L299）
+
+```go
 // rtype must be kept in sync with ../runtime/type.go:/^type._type.
 type rtype struct {
 	size       uintptr
@@ -321,10 +300,29 @@ type rtype struct {
 	gcdata     *byte    // garbage collection data
 	str        nameOff  // string form
 	ptrToThis  typeOff  // type for pointer to this type, may be zero
-}//https://golang.org/src/reflect/type.go?h=rtype#L299
+}
+```
 
+其实reflect包里面的`rtype`就是我们前面提到的`_type`类型。
+
+`rtype`实现了接口`Type`所定义的所有方法，这也是为什么我们上面可以在`toType`函数直接返回`*type`类型的`t`的原因。
+
+我们接下来看`rtype`类型的`Name`方法是如何实现的。
+
+```go
+func (t *rtype) Name() string {
+	if t.tflag&tflagNamed == 0 {
+		return ""
+	}
+	s := t.String()
+	i := len(s) - 1
+	for i >= 0 && s[i] != '.' {
+		i--
+	}
+	return s[i+1:]
+}//https://golang.org/src/internal/reflectlite/type.go?h=Name%28%29
 func (t *rtype) String() string {
-	s := t.nameOff(t.str).name()
+	s := t.nameOff(t.str).name()//这里很关键，取了rtype类型的str字段
 	if t.tflag&tflagExtraStar != 0 {
 		return s[1:]
 	}
@@ -364,7 +362,23 @@ func resolveNameOff(ptrInModule unsafe.Pointer, off nameOff) name {
 	}
 	return name{(*byte)(res)}
 }//https://golang.org/src/runtime/type.go?h=resolveNameOff#L180
+```
 
+注意`rtype`类型的`String`方法。取了`rtype`类型的`str`字段。
+
+`str`字段决定了我们调用`reflect.TypeOf().Name()`返回的类型名字。
+
+这也是我们在本节开头提到的`nameOff`类型的字段`str`。
+
+**`str`表示什么含义呢？**
+
+`str`表示与某个`rtype`类型变量对应的Concrete Type类型的名称在某个区块中相对于区块起始地址的偏移。
+
+这里的**区块**（moduledata）指的是啥呢？
+
+我们再来看上面`resolveNameOff`的实现。涉及到了一个变量`firstmoduledata`。
+
+```go
 var firstmoduledata moduledata  // linker symbol
 // moduledata records information about the layout of the executable
 
@@ -378,20 +392,20 @@ var firstmoduledata moduledata  // linker symbol
 
 type moduledata struct {
 
-	pclntable    []byte
+	pclntable    []byte		//24 byte
 
-	ftab         []functab
+	ftab         []functab //24 byte
 
-	filetab      []uint32
+	filetab      []uint32  //24 byte
 
-	findfunctab  uintptr
+	findfunctab  uintptr	//8 byte
 
-	minpc, maxpc uintptr
+	minpc, maxpc uintptr	//16 byte
 
 
-	text, etext           uintptr
+	text, etext           uintptr	//16 byte
 
-	noptrdata, enoptrdata uintptr
+	noptrdata, enoptrdata uintptr	//16 byte
 
 	data, edata           uintptr
 
@@ -507,7 +521,15 @@ Local exec file:
 (gdb)
 ```
 
+那么`firstmoduledata`这个符号相对于`.noptrdata`段的偏移是多少呢？
 
+0x54f1a0 - 0x54a020 = 0x5180
+
+我们又可知`.noptrdata`在ELF文件`main`中的偏移量为0x14a020，那么`firstmoduledata`在ELF文件`main`的偏移量为0x14a020 + 0x5180 = 0x14f1a0
+
+我们使用hexdump来读取`main`文件偏移量0x14f1a0起始的文件内容。
+
+0x14f1a0 +96
 
 ### iface
 

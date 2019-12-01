@@ -218,7 +218,7 @@ typedef struct {
 
 具体每个字段含义参考[这里](https://docs.oracle.com/cd/E19683-01/817-3677/chapter6-94076/index.html)。
 
-
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/section_vmem.png)
 
 ## 常见的段（section）
 

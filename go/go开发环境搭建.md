@@ -39,3 +39,14 @@
   ```
 
   
+  
+# gvm安装
+
+使用gvm可以方便地在多个不同的go版本之间切换。
+
+```shell
+bash < <(curl -s -S -L https://raw.githubusercontent.com/moovweb/gvm/master/binscripts/gvm-installer)
+
+```
+
+由于可能被墙，建议使用shadowsocks + privoxy 搭建http代理。

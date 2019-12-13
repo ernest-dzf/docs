@@ -310,6 +310,32 @@ type rtype struct {
 我们接下来看`rtype`类型的`Name`方法是如何实现的。
 
 ```go
+// name is an encoded type name with optional extra data.
+//
+// The first byte is a bit field containing:
+//
+//	1<<0 the name is exported
+//	1<<1 tag data follows the name
+//	1<<2 pkgPath nameOff follows the name and tag
+//
+// The next two bytes are the data length:
+//
+//	 l := uint16(data[1])<<8 | uint16(data[2])
+//
+// Bytes [3:3+l] are the string data.
+//
+// If tag data follows then bytes 3+l and 3+l+1 are the tag length,
+// with the data following.
+//
+// If the import path follows, then 4 bytes at the end of
+// the data form a nameOff. The import path is only set for concrete
+// methods that are defined in a different package than their type.
+//
+// If a name starts with "*", then the exported bit represents
+// whether the pointed to type is exported.
+type name struct {
+	bytes *byte
+} //https://golang.org/src/reflect/type.go?h=name#L466
 func (t *rtype) Name() string {
 	if t.tflag&tflagNamed == 0 {
 		return ""
@@ -407,18 +433,18 @@ type moduledata struct {
 
 	noptrdata, enoptrdata uintptr	//16 byte
 
-	data, edata           uintptr
+	data, edata           uintptr	// 16 byte
 
-	bss, ebss             uintptr
+	bss, ebss             uintptr // 16 byte
 
-	noptrbss, enoptrbss   uintptr
+	noptrbss, enoptrbss   uintptr // 16 byte
 
-	end, gcdata, gcbss    uintptr
+	end, gcdata, gcbss    uintptr // 24 byte
 
-	types, etypes         uintptr
+	types, etypes         uintptr // 16 byte
 
 
-	textsectmap []textsect
+	textsectmap []textsect // 24 byte
 
 	typelinks   []int32 // offsets from types
 
@@ -457,9 +483,7 @@ type moduledata struct {
 
 
 
-元信息会在运行期，加载到`runtime.moduledata`结构体中，由谁进行加载呢？根据哪些信息加载到moduledata里面去呢？
-
-
+元信息会在运行期，加载到`runtime.moduledata`结构体中。
 
 `firstmoduledata`是runtime包的符号。
 
@@ -488,7 +512,7 @@ type moduledata struct {
   ...
 ```
 
-使用gdb调试`main`文件。（）
+使用gdb调试`main`文件。
 
 ```
 (gdb) info symbol 0x54f1a0
@@ -527,9 +551,234 @@ Local exec file:
 
 我们又可知`.noptrdata`在ELF文件`main`中的偏移量为0x14a020，那么`firstmoduledata`在ELF文件`main`的偏移量为0x14a020 + 0x5180 = 0x14f1a0
 
-我们使用hexdump来读取`main`文件偏移量0x14f1a0起始的文件内容。
+我们使用hexdump来读取`main`文件偏移量0x14f1a0起始的文件内容，就是读取`firstmoduledata`的内容。
 
-0x14f1a0 +96
+比如我们想要知道`.text`段的起始地址，`text`字段在`firstmoduledata`的偏移量为96字节。
+
+0x14f1a0 + 96 = 0x14F200
+
+```shell
+[root@localhost]~/code/src/main# hexdump -s 0x14F200 main -n 8
+014f200 1000 0040 0000 0000
+014f208
+[root@localhost]~/code/src/main#
+```
+
+考虑到是小端（低尾，尾数在低字节），我们根据hexdump出来的结果，猜测`.text`段在虚拟地址空间的起始地址为0x401000。
+
+通过`readelf -S main`验证一下。
+
+```shell
+[root@localhost]~/code/src/main# readelf -S main |head -n 15
+共有 25 个节头，从偏移量 0x1c8 开始：
+
+节头：
+  [号] 名称              类型             地址              偏移量
+       大小              全体大小          旗标   链接   信息   对齐
+  [ 0]                   NULL             0000000000000000  00000000
+       0000000000000000  0000000000000000           0     0     0
+  [ 1] .text             PROGBITS         0000000000401000  00001000
+       000000000008c203  0000000000000000  AX       0     0     16
+  [ 2] .rodata           PROGBITS         000000000048e000  0008e000
+       000000000004f757  0000000000000000   A       0     0     32
+  [ 3] .shstrtab         STRTAB           0000000000000000  000dd760
+       00000000000001a1  0000000000000000           0     0     1
+  [ 4] .typelink         PROGBITS         00000000004dd920  000dd920
+       0000000000000c70  0000000000000000   A       0     0     32
+[root@localhost]~/code/src/main#
+```
+
+可以看到`.text`段的起始地址确实是`0x401000`。
+
+我们现在想利用hexdump工具获取`firstmoduledata`结构里面的`types`和`etypes`值。
+
+这两个字段也是在二进制可执行文件生成后就确定了的，在执行二进制文件的时候，随着`firstmoduledata`加载到虚拟内存空间中。
+
+根据前面谈到的`firstmoduledata`结构体，我们知道`types`在`firstmoduledata`的偏移量为200字节。
+
+0x14f1a0 + 200 = 0x14F268
+
+0x14f1a0 + 208 = 0x14F270
+
+```shell
+[root@localhost]~/code/src/main# hexdump -s 0x14F268 main -n 8
+014f268 e000 0048 0000 0000
+014f270
+[root@localhost]~/code/src/main#
+[root@localhost]~/code/src/main# hexdump -s 0x14F270 main -n 8
+014f270 d757 004d 0000 0000
+014f278
+[root@localhost]~/code/src/main#
+
+
+```
+
+那么`types`的值为`0x48e000`，`etypes`的值为`0x4dd757`。
+
+发现刚好是`.rodata`段的地址空间。（`rtype`是存放在`.rodata`段的么？）
+
+`.rodata`段在ELF文件main中的偏移量为`0x0008e000`。
+
+```shell
+[root@localhost]~/code/src/main# readelf -S main|head -n 15
+共有 25 个节头，从偏移量 0x1c8 开始：
+
+节头：
+  [号] 名称              类型             地址              偏移量
+       大小              全体大小          旗标   链接   信息   对齐
+  [ 0]                   NULL             0000000000000000  00000000
+       0000000000000000  0000000000000000           0     0     0
+  [ 1] .text             PROGBITS         0000000000401000  00001000
+       000000000008c2a3  0000000000000000  AX       0     0     16
+  [ 2] .rodata           PROGBITS         000000000048e000  0008e000
+       000000000004f7f7  0000000000000000   A       0     0     32
+  [ 3] .shstrtab         STRTAB           0000000000000000  000dd800
+       00000000000001a1  0000000000000000           0     0     1
+  [ 4] .typelink         PROGBITS         00000000004dd9c0  000dd9c0
+       0000000000000c74  0000000000000000   A       0     0     32
+[root@localhost]~/code/src/main#
+```
+
+我们再回过来看前面`resolveNameOff`的实现，关注`res := md.types + uintptr(off)`前后附近代码，我们就可以知道`reflect.TypeOf(eface).Name()`的背后实现原理了。
+
+看下面代码：
+
+```go
+package main
+
+import (
+	"fmt"
+	"reflect"
+	"unsafe"
+)
+
+type TestNameOff struct {
+	Id		int64
+	Name	string
+}
+
+func main() {
+	obj := TestNameOff{}
+	var eface  interface{}
+	eface = obj
+	typeName := reflect.TypeOf(eface).Name()
+	fmt.Println("typeName = ", typeName)
+
+	p := unsafe.Pointer(&eface)
+	typePtrVal := unsafe.Pointer(*((*uintptr)(p)))
+
+	strp := *(*uint32)(unsafe.Pointer(uintptr(typePtrVal) + 8 + 8 + 8 +8 +8))
+	fmt.Println("_type.str = ", strp)
+}
+```
+
+输出为：
+
+```
+[root@localhost]~/code/src/main# ./main
+typeName =  TestNameOff
+_type.str =  29024
+[root@localhost]~/code/src/main#
+
+```
+
+那么`res := md.types + uintptr(off)`， `md.types`在ELF文件`main`的偏移量是`8e000`，那么`res`在ELF文件的偏移量为`0x8e000 + 29024 = 610656`。
+
+我们猜想ELF文件`main`在偏移量为610656处，保存的是类型`TestNameOff`的名称，也就是字符串TestNameOff。
+
+```shell
+[root@localhost]~/code/src/main# hexdump -s 610656 main -C -n 100
+00095160  01 00 11 2a 6d 61 69 6e  2e 54 65 73 74 4e 61 6d  |...*main.TestNam|
+00095170  65 4f 66 66 00 00 11 2a  6d 61 70 5b 73 74 72 69  |eOff...*map[stri|
+00095180  6e 67 5d 69 6e 74 36 34  00 00 11 2a 72 65 66 6c  |ng]int64...*refl|
+00095190  65 63 74 2e 66 75 6e 63  54 79 70 65 01 00 11 2a  |ect.funcType...*|
+000951a0  72 65 66 6c 65 63 74 6c  69 74 65 2e 4b 69 6e 64  |reflectlite.Kind|
+000951b0  01 00 11 2a 72 65 66 6c  65 63 74 6c 69 74 65 2e  |...*reflectlite.|
+000951c0  54 79 70 65                                       |Type|
+000951c4
+[root@localhost]~/code/src/main#
+```
+
+**确实如此！**
+
+#### rtype存放在哪个段里
+
+我们前面谈了这么多`rtype`（或者`_type`），那么这个`rtype`存放在哪个段里面呢？
+
+存放在`.rodata`段里面。
+
+```go
+package main
+
+import (
+	"fmt"
+	"reflect"
+	"unsafe"
+)
+
+type TestNameOffVictor struct {
+	Id		int64
+	Name	string
+}
+
+func main() {
+	obj := TestNameOffVictor{}
+	var eface  interface{}
+	eface = obj
+	typeName := reflect.TypeOf(eface).Name()
+	fmt.Println("typeName = ", typeName)
+
+	p := unsafe.Pointer(&eface)
+	typePtrVal := unsafe.Pointer(*((*uintptr)(p)))
+
+	fmt.Printf("typePtrVal = %p\n", typePtrVal)
+
+	strp := *(*uint32)(unsafe.Pointer(uintptr(typePtrVal) + 8 + 8 + 8 +8 +8))
+	fmt.Println("_type.str = ", strp)
+}
+```
+
+我们打印`typePtrVal`的值，就是打印`_type`类型结构的地址，
+
+```shell
+[root@localhost]~/code/src/main# ./main
+typeName =  TestNameOffVictor
+typePtrVal = 0x4aca20
+_type.str =  36685
+[root@localhost]~/code/src/main#
+```
+
+可以看到其值为`0x4aca20`，这个地址是位于`.rodata`段的。
+
+#### 把一个具体的值赋值给一个eface
+
+我们看下面这个例子
+
+```go
+package main
+
+import (
+    "fmt"
+)
+
+type MyInterface interface {
+    Print()
+}
+
+type MyStruct struct{}
+func (ms MyStruct) Print() {}
+
+func main() {
+    x := 1
+    var y interface{} = x
+    var s MyStruct
+    var t MyInterface = s
+    fmt.Println(y, t)
+}
+
+```
+
+`var y interface{} = x`，将`x`赋值给一个空的interface。编译器后面替我们干了些什么呢？
 
 ### iface
 
@@ -558,6 +807,12 @@ type interfacetype struct {
     mhdr    []imethod
 }
 ```
+
+
+
+可以看到，`iface`包含2部分，`*itab`类型的`tab`字段和`unsafe.Pointer`类型的`data`字段。
+
+
 
 ## 参考
 

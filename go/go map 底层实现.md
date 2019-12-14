@@ -8,18 +8,20 @@ golang中map的底层实现是一个散列表，因此实现map的过程实际�
 
 先来看看hmap的结构。
 	
-	type hmap struct {
-		count     int // # live cells == size of map.  Must be first (used by len() builtin)
-		flags     uint8
-		B         uint8  // log_2 of # of buckets (can hold up to loadFactor * 2^B items)
-		noverflow uint16 // approximate number of overflow buckets; see incrnoverflow for details
-		hash0     uint32 // hash seed
-	
-		buckets    unsafe.Pointer // array of 2^B Buckets. may be nil if count==0.
-		oldbuckets unsafe.Pointer // previous bucket array of half the size, non-nil only when growing
-		nevacuate  uintptr        // progress counter for evacuation (buckets less than this have been evacuated)
-		overflow *[2]*[]*bmap
-	}
+```go
+type hmap struct {
+	count     int // # live cells == size of map.  Must be first (used by len() builtin)
+	flags     uint8
+	B         uint8  // log_2 of # of buckets (can hold up to loadFactor * 2^B items)
+	noverflow uint16 // approximate number of overflow buckets; see incrnoverflow for details
+	hash0     uint32 // hash seed
+
+	buckets    unsafe.Pointer // array of 2^B Buckets. may be nil if count==0.
+	oldbuckets unsafe.Pointer // previous bucket array of half the size, non-nil only when growing
+	nevacuate  uintptr        // progress counter for evacuation (buckets less than this have been evacuated)
+	overflow *[2]*[]*bmap
+}
+```
 
 其中`B`表示有2^B个buckets。
 
@@ -31,23 +33,25 @@ golang的map中用于存储的实际上是`bucket`数组。那么`bucket`的结�
 ## bucket结构 ##
 
 
-	// A bucket for a Go map.
-	type bmap struct {
-		// tophash generally contains the top byte of the hash value
-		// for each key in this bucket. If tophash[0] < minTopHash,
-		// tophash[0] is a bucket evacuation state instead.
-		tophash [bucketCnt]uint8
-		// Followed by bucketCnt keys and then bucketCnt values.
-		// NOTE: packing all the keys together and then all the values together makes the
-		// code a bit more complicated than alternating key/value/key/value/... but it allows
-		// us to eliminate padding which would be needed for, e.g., map[int64]int8.
-		// Followed by an overflow pointer.
-	}
-	……
-		// Maximum number of key/value pairs a bucket can hold.
-	bucketCntBits = 3
-	bucketCnt     = 1 << bucketCntBits
-	……
+```go
+// A bucket for a Go map.
+type bmap struct {
+	// tophash generally contains the top byte of the hash value
+	// for each key in this bucket. If tophash[0] < minTopHash,
+	// tophash[0] is a bucket evacuation state instead.
+	tophash [bucketCnt]uint8
+	// Followed by bucketCnt keys and then bucketCnt values.
+	// NOTE: packing all the keys together and then all the values together makes the
+	// code a bit more complicated than alternating key/value/key/value/... but it allows
+	// us to eliminate padding which would be needed for, e.g., map[int64]int8.
+	// Followed by an overflow pointer.
+}
+……
+	// Maximum number of key/value pairs a bucket can hold.
+bucketCntBits = 3
+bucketCnt     = 1 << bucketCntBits
+……
+```
 
 `tophash`是个大小为8(bucketCnt)的数组，存储了8个key的hash值的高八位值。
 

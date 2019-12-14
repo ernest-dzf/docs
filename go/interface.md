@@ -752,6 +752,10 @@ _type.str =  36685
 
 #### 把一个具体的值赋值给一个eface
 
+当将某个类型赋值给空接口时，由于空接口没有方法，所以空接口`eface`的tab会直接指向数据的具体类型，实际上就是前面谈到的`_type`字段。
+
+在Go的reflect包中，`reflect.TypeOf`和`reflect.ValueOf`的参数都是空接口，因此所有参数都会先转换为空接口类型。这样反射就实现了对所有参数类型获取实际数据类型的统一。
+
 我们看下面这个例子
 
 ```go
@@ -788,31 +792,81 @@ iface表示有方法的interface。
 type iface struct {
     tab  *itab
     data unsafe.Pointer
-}
+}// 目前这个和go 版本无关，不同go 版本都是一样的
+
 type itab struct {
-    inter  *interfacetype
-    _type  *_type
-    link   *itab
-    hash   uint32
-    bad    bool
-    inhash bool
-    unused [2]byte
-    fun    [1]uintptr
-}
+        inter  *interfacetype
+        _type  *_type
+        link   *itab
+        bad    int32
+        inhash int32      // has this itab been added to hash?
+        fun    [1]uintptr // variable sized
+}// go 版本 go1.8.3，不同版本，itab数据结构可能不一样
 
 // interface数据类型对应的type
 type interfacetype struct {
     typ     _type
     pkgpath name
     mhdr    []imethod
-}
+}// 目前这个和go 版本无关，不同go版本都是一样的
 ```
 
 
 
 可以看到，`iface`包含2部分，`*itab`类型的`tab`字段和`unsafe.Pointer`类型的`data`字段。
 
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/iface1.png)
 
+`data`和前面谈到的`eface`中的data一样的，指向实际的数据部分。
+
+下面例子可以验证，
+
+```go
+package main
+
+import (
+	"fmt"
+	"unsafe"
+)
+
+type MyInterface interface {
+	Print()
+}
+
+type MyStruct struct{
+	Name		string
+}
+func (ms MyStruct) Print() {}
+
+func main() {
+	obj := MyStruct{"victor"}
+	var iface MyInterface
+	iface = obj
+
+	//dataPtr表示iface中的data指针
+	dataPtr := unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + uintptr(8))
+
+	//取出data指针的值
+	dataPtrVal := *(*uintptr)(dataPtr)
+
+	//data指针的值实际上是Mystruct的数据的地址
+	assertPtr := *(*string)(unsafe.Pointer(dataPtrVal))
+	fmt.Println(assertPtr)//输出 victor
+}
+
+```
+
+
+
+`tab`字段是`iface`不同于`eface`的关键数据结构。（go版本为go1.11.13）
+
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/iface_itable.png)
+
+
+
+`iface`的整体结构如下：
+
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/iface_all.png)
 
 ## 参考
 

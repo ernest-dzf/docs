@@ -185,7 +185,7 @@ func main() {
 
 例子2打印出结构体`People`字节对齐情况，表示按照4字节对齐。
 
-21表示`fieldalign`字段在结构_type的地址偏移。
+`ptralign := unsafe.Pointer(uintptr(typePtrVal) + uintptr(21))`中的21表示`fieldalign`字段在结构_type的地址偏移。
 
 #### 例子3
 
@@ -762,29 +762,69 @@ _type.str =  36685
 package main
 
 import (
-    "fmt"
+	"fmt"
+	"unsafe"
 )
 
 type MyInterface interface {
-    Print()
+	Print()
 }
 
-type MyStruct struct{}
+type MyStruct struct{
+	Name		string
+}
 func (ms MyStruct) Print() {}
 
 func main() {
-    x := 1
-    var y interface{} = x
-    var s MyStruct
-    var t MyInterface = s
-    fmt.Println(y, t)
+
+
+	obj := MyStruct{"victor"}
+	var iface MyInterface
+	var eface interface{}
+	eface = obj
+	fmt.Printf("eface = %v\n", eface)
+	iface = obj
+
+	//dataPtr表示iface中的data指针
+	dataPtr := unsafe.Pointer(uintptr(unsafe.Pointer(&iface)) + uintptr(8))
+
+	//取出data指针的值
+	dataPtrVal := *(*uintptr)(dataPtr)
+
+	//data指针的值实际上是Mystruct的数据的地址
+	assertPtr := *(*string)(unsafe.Pointer(dataPtrVal))
+	fmt.Println(assertPtr)
 }
 
 ```
 
-`var y interface{} = x`，将`x`赋值给一个空的interface。编译器后面替我们干了些什么呢？
+`eface = obj`，将`obj`赋值给一个空的interface。编译器后面替我们干了些什么呢？
+
+我们看下汇编代码。
+
+```shell
+[root@localhost]~/code/src/main# go build -gcflags="-l -N" main.go
+[root@localhost]~/code/src/main# go tool objdump -s "main" main > as
+```
+
+```
+ ……………
+ main.go:23            0x486e67                488d8424d0000000                LEAQ 0xd0(SP), AX
+  main.go:23            0x486e6f                4889442408                      MOVQ AX, 0x8(SP)
+  main.go:23            0x486e74                e8c718f8ff                      CALL runtime.convT2E(SB)
+  main.go:23            0x486e79                488b442418                      MOVQ 0x18(SP), AX
+ ………………
+```
+
+可以看到编译器通过convT2E将编译器已知的类型赋给接口（其中E代表eface，T代表编译器已知类型，即静态类型）。编译器知晓itab的布局，会在编译期检查接口是否适配，并且生成itab信息，因此编译器生成的convT2E调用是必然成功的。
+
+#### convT2E
+
+
 
 ### iface
+
+下面go 版本以go 1.11.13为例。
 
 iface表示有方法的interface。
 
@@ -795,13 +835,12 @@ type iface struct {
 }// 目前这个和go 版本无关，不同go 版本都是一样的
 
 type itab struct {
-        inter  *interfacetype
-        _type  *_type
-        link   *itab
-        bad    int32
-        inhash int32      // has this itab been added to hash?
-        fun    [1]uintptr // variable sized
-}// go 版本 go1.8.3，不同版本，itab数据结构可能不一样
+        inter *interfacetype
+        _type *_type
+        hash  uint32 // copy of _type.hash. Used for type switches.
+        _     [4]byte
+        fun   [1]uintptr // variable sized. fun[0]==0 means _type does not implement inter.
+}// go 版本 go1.11.13，不同版本，itab数据结构可能不一样
 
 // interface数据类型对应的type
 type interfacetype struct {
@@ -809,6 +848,10 @@ type interfacetype struct {
     pkgpath name
     mhdr    []imethod
 }// 目前这个和go 版本无关，不同go版本都是一样的
+type imethod struct {   //这里的 method 只是一种函数声明的抽象，比如  func Print() error
+    name nameOff
+    ityp typeOff
+}
 ```
 
 
@@ -860,7 +903,19 @@ func main() {
 
 `tab`字段是`iface`不同于`eface`的关键数据结构。（go版本为go1.11.13）
 
+`inter`（类型为`*interfacetype`）字段表述了一些关于interface本身的信息，比如上面例子中接口`MyInterface`的一些信息，`MyInterface`包含哪些方法，`MyInterface` 所在的package path等。
+
+而`itab`中的`_type`字段则表示了interface所承载的Concrete Type的类型信息，比如上面例子中`MyStruct`的一些信息。
+
 ![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/iface_itable.png)
+
+
+
+至于`fun`字段（`[1]uintptr`类型），虽然是一个长度为1的数组，但是在使用时会直接通过指针获取其中的数据，并不会检查数组的边界，所以该数组中保存的元素数量是不确定的。
+
+`fun`中存放的是方法的地址。
+
+
 
 
 

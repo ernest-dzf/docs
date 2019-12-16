@@ -807,20 +807,43 @@ func main() {
 [root@localhost]~/code/src/main# go tool objdump -s "main" main > as
 ```
 
-```
+```shell
  ……………
  main.go:23            0x486e67                488d8424d0000000                LEAQ 0xd0(SP), AX
-  main.go:23            0x486e6f                4889442408                      MOVQ AX, 0x8(SP)
-  main.go:23            0x486e74                e8c718f8ff                      CALL runtime.convT2E(SB)
-  main.go:23            0x486e79                488b442418                      MOVQ 0x18(SP), AX
+ main.go:23            0x486e6f                4889442408                      MOVQ AX, 0x8(SP)
+ main.go:23            0x486e74                e8c718f8ff                      CALL runtime.convT2E(SB)
+ main.go:23            0x486e79                488b442418                      MOVQ 0x18(SP), AX
  ………………
 ```
 
-可以看到编译器通过convT2E将编译器已知的类型赋给接口（其中E代表eface，T代表编译器已知类型，即静态类型）。编译器知晓itab的布局，会在编译期检查接口是否适配，并且生成itab信息，因此编译器生成的convT2E调用是必然成功的。
+可以看到，对于`eface = obj`这种将一个静态类型变量赋值给空接口的case，最终得到的汇编代码是调用`runtime.convT2E`函数。（其中E代表eface，T代表编译器已知类型，即静态类型）。
+
+编译器知道一个静态类型的`_type`结构信息（以上面的例子来说，就是编译器知道`MyStruct`对应的`_type`信息，`_type`结构所在rodata段的地址。为啥呢？因为这些信息就是编译器生成填充到rodata段的，在程序未运行前就存在于ELF文件中），会在编译期检查接口是否适配，因此编译器生成的`convT2E`调用是必然成功的。
 
 #### convT2E
 
+先来看下源码，
 
+```go
+func convT2E(t *_type, elem unsafe.Pointer) (e eface) {
+	if raceenabled {//Go race detector,关于race detect，可以略过，默认编译没有加-race选项的话，这里就是false
+    //https://www.ardanlabs.com/blog/2013/09/detecting-race-conditions-with-go.html
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2E))
+	}
+	if msanenabled {//不知道干啥用的，但是如果编译不添加-msan选项的话，这个也是false，默认一般都是false
+		msanread(elem, t.size)//
+	}
+	x := mallocgc(t.size, t, true)// // 这里根据*elem的大小分配一块内存
+	// TODO: We allocate a zeroed object only to overwrite it with actual data.
+	// Figure out how to avoid zeroing. Also below in convT2Eslice, convT2I, convT2Islice.
+	typedmemmove(t, x, elem)/// 内存拷贝
+	e._type = t
+	e.data = x
+	return
+}
+```
+
+我们看到`convT2E`干的事情很简单。
 
 ### iface
 

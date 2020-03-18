@@ -27,8 +27,7 @@
 		+------------------------------------+
 		1 row in set (0.00 sec)
 
-	
-3. GRANT ALL PRIVILEGES ON *.* TO '用户'@'主机' WITH GRANT OPTION
+3. `GRANT ALL PRIVILEGES ON *.* TO '用户'@'主机' WITH GRANT OPTION`
 
 	对账户授权。这里需要注意一下上面的`*.*`,表示对所有db的所有表进行授权，`*`号不能被反单引号括起来。当然也可以对某个db的某个表进行授权。单个db或者表这时候是可以被反单引号括起来的。
 

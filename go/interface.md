@@ -845,6 +845,12 @@ func convT2E(t *_type, elem unsafe.Pointer) (e eface) {
 
 我们看到`convT2E`干的事情很简单。
 
+1. 分配一块`t.size`大小的内存，返回地址`x`（`x := mallocgc(t.size, t, true)`）
+2. 根据`t`的信息，将地址`elem`代表的值拷贝到`x`起始的内存
+3. 填充`eface`类型的返回值`e`
+
+这里我们也可以看到，将一个静态类型赋值给空接口。空接口的`data`指针指向一片新的内存区域，这片内存保存的是静态类型对象的数据；空接口的`_type`指向静态类型抽象出来的`_type`结构，这个`_type`结构位于rodata段。
+
 ### iface
 
 下面go 版本以go 1.11.13为例。
@@ -938,13 +944,145 @@ func main() {
 
 `fun`中存放的是方法的地址。
 
-
-
-
-
 `iface`的整体结构如下：
 
 ![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/iface_all.png)
+
+#### 把一个具体的值赋给iface
+
+将某一个静态类型赋值给iface，实际上就是对`iface`结构中`tab`和`data`字段的赋值。
+
+看下面的例子，
+
+```go
+package main
+
+import (
+	"fmt"
+)
+
+type MyInterface interface {
+	Print()
+}
+
+type MyStruct struct{
+	Name		string
+}
+func (ms MyStruct) Print() {
+	fmt.Println("Hello")
+}
+
+func main() {
+	var iface MyInterface
+	obj := MyStruct{}
+	iface = obj
+	iface.Print()
+}
+
+```
+
+编译汇编代码，
+
+```shell
+[root@localhost]~/code/src/main# go build -gcflags="-l -N" main.go
+[root@localhost]~/code/src/main# go tool objdump -s "main" main > as
+```
+
+如下，
+
+```
+  ……
+	main.go:21            0x4851a0                488d442440              LEAQ 0x40(SP), AX
+  main.go:21            0x4851a5                4889442408              MOVQ AX, 0x8(SP)
+  main.go:21            0x4851aa                e8f137f8ff              CALL runtime.convT2I(SB)
+  main.go:21            0x4851af                488b442410              MOVQ 0x10(SP), AX
+  main.go:21            0x4851b4                488b4c2418              MOVQ 0x18(SP), CX
+  ……
+```
+
+可以看到是调用了`convT2I`函数。
+
+#### convT2I
+
+先来看下源码，
+
+```go
+func convT2I(tab *itab, elem unsafe.Pointer) (i iface) {
+	t := tab._type
+	if raceenabled {
+		raceReadObjectPC(t, elem, getcallerpc(), funcPC(convT2I))
+	}
+	if msanenabled {
+		msanread(elem, t.size)
+	}
+	x := mallocgc(t.size, t, true)
+	typedmemmove(t, x, elem)
+	i.tab = tab
+	i.data = x
+	return
+}
+```
+
+将一个Struct赋值给一个有方法的interface，编译器负责合法性，确保该Struct实现了该interface 所有的方法。
+
+最终是落脚到`convT2I`函数的。
+
+可以看到`convT2I`做的事情很简单，
+
+1. 分配一段内存，将`Struct`的data部分复制过去，并将这段内存的地址赋值给`iface`的data字段
+2. 拷贝指针`tab`到`iface`的`tab`字段
+
+这里就有疑问了，`convT2I`的第一个形参`tab *itab`是怎么得到的？
+
+#### itab怎么来的？
+
+编译器为静态类型生成的itab信息是放在`.rodata`段的。
+
+```go
+package main
+
+import (
+	"fmt"
+	"unsafe"
+)
+
+type MyInterface interface {
+	Print()
+}
+
+type MyStruct struct{
+	Name		int32
+}
+func (ms MyStruct) Print() {
+	fmt.Println("Hello")
+}
+
+func main() {
+	var iface MyInterface
+	obj := MyStruct{}
+	iface = obj
+	itabAddr := *(*uintptr)(unsafe.Pointer(&iface))
+	fmt.Printf("%p\n",unsafe.Pointer(itabAddr))
+	iface.Print()
+}
+
+```
+
+上面例子打印`MyStruct`对应的itab地址，
+
+输出，
+
+```
+[root@localhost]~/code/src/main# ./main
+0x4cb000
+Hello
+[root@localhost]~/code/src/main#
+
+```
+
+0x4cb000位于`.rodata`段内（可以通过`readelf -S main`来确认）。
+
+#### 方法地址如何使用？
 
 ## 参考
 

@@ -2,77 +2,78 @@
 
 mysql 中创建数据库，会在数据目录下面创建相关目录，比如下面，
 
-	# root @ localhost in /usr/local/mysql/data [6:04:34] 
-	$ ls
-	auto.cnf    client-cert.pem  ib_buffer_pool  ib_logfile1                localhost.localdomain.pid  private_key.pem  server-key.pem
-	ca-key.pem  client-key.pem   ibdata1         ibtmp1                     mysql                      public_key.pem   sys
-	ca.pem      fenqu            ib_logfile0     localhost.localdomain.err  performance_schema         server-cert.pem  victor
-	
-	# root @ localhost in /usr/local/mysql/data [6:04:35] 
-	$ cd victor
-	
-	# root @ localhost in /usr/local/mysql/data/victor [6:04:53] 
-	$ pwd
-	/usr/local/mysql/data/victor
-	
-	# root @ localhost in /usr/local/mysql/data/victor [6:04:54] 
-	$ ls
-	db.opt  employees.frm  employees.ibd
-	
-	# root @ localhost in /usr/local/mysql/data/victor [6:04:55] 
-	$       
+```shell
+# root @ localhost in /usr/local/mysql/data [6:04:34] 
+$ ls
+auto.cnf    client-cert.pem  ib_buffer_pool  ib_logfile1                localhost.localdomain.pid  private_key.pem  server-key.pem
+ca-key.pem  client-key.pem   ibdata1         ibtmp1                     mysql                      public_key.pem   sys
+ca.pem      fenqu            ib_logfile0     localhost.localdomain.err  performance_schema         server-cert.pem  victor
 
+# root @ localhost in /usr/local/mysql/data [6:04:35] 
+$ cd victor
+
+# root @ localhost in /usr/local/mysql/data/victor [6:04:53] 
+$ pwd
+/usr/local/mysql/data/victor
+
+# root @ localhost in /usr/local/mysql/data/victor [6:04:54] 
+$ ls
+db.opt  employees.frm  employees.ibd
+
+# root @ localhost in /usr/local/mysql/data/victor [6:04:55] 
+$       
+```
 上面对应的数据库如下：
+```shell
+mysql> show databases;
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| fenqu              |
+| mysql              |
+| performance_schema |
+| sys                |
+| victor             |
++--------------------+
+6 rows in set (0.01 sec)
 
-	mysql> show databases;
-	+--------------------+
-	| Database           |
-	+--------------------+
-	| information_schema |
-	| fenqu              |
-	| mysql              |
-	| performance_schema |
-	| sys                |
-	| victor             |
-	+--------------------+
-	6 rows in set (0.01 sec)
-	
-	mysql> use victor;
-	Reading table information for completion of table and column names
-	You can turn off this feature to get a quicker startup with -A
-	
-	Database changed
-	mysql> show tables;
-	+------------------+
-	| Tables_in_victor |
-	+------------------+
-	| employees        |
-	+------------------+
-	1 row in set (0.00 sec)
-	
-	mysql> 
+mysql> use victor;
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
 
+Database changed
+mysql> show tables;
++------------------+
+| Tables_in_victor |
++------------------+
+| employees        |
++------------------+
+1 row in set (0.00 sec)
+
+mysql> 
+```
 可以看到数据库`victor`在数据目录`/usr/local/mysql/data`下对应的目录就是`victor`。目录项目有三个文件，分别是`db.opt`、`employees.frm`和`employees.ibd`。
 
 ## employees.frm文件 ##
 ## employees.ibd文件 ##
 
-xxx.ibd文件表示表空间。一般开启了独立表空间的mysql，每个表会有自己的xxx.ibd文件，存放在每个表的目录下面。
+`xxx.ibd`文件表示表空间。一般开启了独立表空间的mysql，每个表会有自己的`xxx.ibd`文件，存放在该表所属database的目录下面。
 
 比如上面看到的employees表，有对应的employees.ibd文件，这个就是employees表自己独立的表空间。
 
 是否开启独立表空间是可以配置的，查看当前是否开启可以这样：
+```shell
+mysql> show variables like '%innodb_file_per_table%';
++-----------------------+-------+
+| Variable_name         | Value |
++-----------------------+-------+
+| innodb_file_per_table | ON    |
++-----------------------+-------+
+1 row in set (0.00 sec)
 
-	mysql> show variables like '%innodb_file_per_table%';
-	+-----------------------+-------+
-	| Variable_name         | Value |
-	+-----------------------+-------+
-	| innodb_file_per_table | ON    |
-	+-----------------------+-------+
-	1 row in set (0.00 sec)
-	
-	mysql> 
-
+mysql> 
+```
 上面可以看到，是开启了独立表空间的。
 
 如果是OFF的话，那么所有表使用共享的表空间。这个共享的表空间文件一般是放在data目录下面。

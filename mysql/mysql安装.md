@@ -26,7 +26,7 @@
 	[root@VM_0_15_centos local]# 
 	```
 3. 创建一个软链接到`Percona-Server-5.7.25-28-Linux.x86_64.ssl101`这个目录
-	```
+	```shell
 	[root@VM_0_15_centos local]# ls
 	bin  games    lib    libexec  Percona-Server-5.7.25-28-Linux.x86_64.ssl101  sbin   src
 	etc  include  lib64  mysql    qcloud                                        share  yd.socket.server
@@ -39,7 +39,7 @@
 1. 官网下载linux generic binary包，地址：https://dev.mysql.com/downloads/mysql/
 2. 下载得到的是一个xxx.tar.gz的包，比如`mysql-5.7.23-linux-glibc2.12-x86_64.tar.gz`，解压得到`/usr/local/`目录下面去，比如
 
-	```
+	```shell
 	# victor @ localhost in /usr/local [8:40:55] 
 	$ ls
 	bin  etc  games  include  lib  lib64  libexec  mysql  mysql-5.7.23-linux-glibc2.12-x86_64  sbin  share  src
@@ -62,12 +62,12 @@
 	lrwxrwxrwx. 1 root root 35 Oct 10 08:44 mysql -> mysql-5.7.23-linux-glibc2.12-x86_64
 	```
 4. 安装一些依赖包
-	```
+	```shell
 	shell> yum search libaio  # search for info
 	shell> yum install libaio # install library
 	```
 5. 安装指令
-	```
+	```shell
 	shell> groupadd mysql
 	shell> useradd -r -g mysql -s /bin/false mysql
 	shell> cd /usr/local
@@ -84,7 +84,7 @@
 	shell> cp support-files/mysql.server /etc/init.d/mysql.server
 	```
 	上面中mysql.server脚本用于方便地启动、暂停、重启服务。比如下面这样：
-	```
+	```shell
 	# victor @ localhost in ~ [8:10:40] C:3
 	$ sudo /etc/init.d/mysql.server start
 	Starting MySQL.. SUCCESS! 
@@ -103,83 +103,84 @@
 6. 添加环境变量
 
   在`/etc/profile`文件末尾添加如下一行
-
-  	export PATH=$PATH:/usr/local/mysql/bin
-
+	```shell
+  export PATH=$PATH:/usr/local/mysql/bin
+	```
   然后 `source /etc/profile`
 
 7. others
 
 	安装完成后可以看到`/usr/local/mysql`目录下的布局如下
-
-		# root @ localhost in /usr/local/mysql [8:54:53] 
-		$ pwd
-		/usr/local/mysql
-		
-		# root @ localhost in /usr/local/mysql [8:54:54] 
-		$ ls
-		bin  COPYING  data  docs  include  lib  man  mysql-files  README  share  support-files
-		
-		# root @ localhost in /usr/local/mysql [8:54:55]
-
+	```shell
+	# root @ localhost in /usr/local/mysql [8:54:53] 
+	$ pwd
+	/usr/local/mysql
+	
+	# root @ localhost in /usr/local/mysql [8:54:54] 
+	$ ls
+	bin  COPYING  data  docs  include  lib  man  mysql-files  README  share  support-files
+	
+	# root @ localhost in /usr/local/mysql [8:54:55]
+	```
 	其中data目录放的就是数据
 
 8. 如果想设置开机启动的话
 
 	为了方便，重命名一下先：
-
-		# root @ localhost in /etc/init.d [9:01:28] 
-		$ mv /etc/init.d/mysql.server mysqld
-
+	```shell
+	# root @ localhost in /etc/init.d [9:01:28] 
+	$ mv /etc/init.d/mysql.server mysqld
+	```
 	然后：		
-
-		# root @ localhost in /etc/init.d [9:01:10] C:1
-		$ chkconfig --add mysqld          
-		
-		# root @ localhost in /etc/init.d [9:01:18] 
-		$ chkconfig --list      
-		
-		Note: This output shows SysV services only and does not include native
-		      systemd services. SysV configuration data might be overridden by native
-		      systemd configuration.
-		
-		      If you want to list systemd services use 'systemctl list-unit-files'.
-		      To see services enabled on particular target use
-		      'systemctl list-dependencies [target]'.
-		
-		mysqld         	0:off	1:off	2:on	3:on	4:on	5:on	6:off
-		netconsole     	0:off	1:off	2:off	3:off	4:off	5:off	6:off
-		network        	0:off	1:off	2:on	3:on	4:on	5:on	6:off
-		vmware-tools   	0:off	1:off	2:on	3:on	4:on	5:on	6:off
-		vmware-tools-thinprint	0:off	1:off	2:on	3:on	4:on	5:on	6:off
-
+	```shell
+	# root @ localhost in /etc/init.d [9:01:10] C:1
+	$ chkconfig --add mysqld          
+	
+	# root @ localhost in /etc/init.d [9:01:18] 
+	$ chkconfig --list      
+	
+	Note: This output shows SysV services only and does not include native
+	systemd services. SysV configuration data might be overridden by native
+	systemd configuration.
+	
+	If you want to list systemd services use 'systemctl list-unit-files'.
+	To see services enabled on particular target use
+	'systemctl list-dependencies [target]'.
+	
+	mysqld         	0:off	1:off	2:on	3:on	4:on	5:on	6:off
+	netconsole     	0:off	1:off	2:off	3:off	4:off	5:off	6:off
+	network        	0:off	1:off	2:on	3:on	4:on	5:on	6:off
+	vmware-tools   	0:off	1:off	2:on	3:on	4:on	5:on	6:off
+	vmware-tools-thinprint	0:off	1:off	2:on	3:on	4:on	5:on	6:off
+	```
 	可以看到mysqld在3、4、5运行级别下都是on，说明设置成功。
 
 ## mysql5.6安装 ##
 
 准备工作：
+```shell
+yum install -y autoconf
 
-	yum install -y autoconf
-	yum -y install numactl.x86_64
-
+```
 由于机器上可能会有`my.cnf`配置文件，所以先将这些删除。可能的路径是`/etc/my.cnf`。
 
 开始安装。
-
-	shell> groupadd mysql
-	shell> useradd -r -g mysql mysql
-	shell> cd /usr/local
-	shell> tar zxvf /path/to/mysql-VERSION-OS.tar.gz
-	shell> ln -s full-path-to-mysql-VERSION-OS mysql
-	shell> cd mysql
-	shell> chown -R mysql .
-	shell> chgrp -R mysql .
-	shell> scripts/mysql_install_db --user=mysql
-	shell> chown -R root .
-	shell> chown -R mysql data
-	shell> bin/mysqld_safe --user=mysql &
-	# Next command is optional
-	shell> cp support-files/mysql.server /etc/init.d/mysql.server
+```shell
+shell> groupadd mysql
+shell> useradd -r -g mysql mysql
+shell> cd /usr/local
+shell> tar zxvf /path/to/mysql-VERSION-OS.tar.gz
+shell> ln -s full-path-to-mysql-VERSION-OS mysql
+shell> cd mysql
+shell> chown -R mysql .
+shell> chgrp -R mysql .
+shell> scripts/mysql_install_db --user=mysql
+shell> chown -R root .
+shell> chown -R mysql data
+shell> bin/mysqld_safe --user=mysql &
+# Next command is optional
+shell> cp support-files/mysql.server /etc/init.d/mysql.server
+```
 
 1. 首先添加mysql用户组
 2. 添加mysql账户，设置用户组为mysql
@@ -193,7 +194,7 @@
 
 其他的诸如加到自启动，环境变量的配置，步骤和mysql5.7安装一样。
 
-
+需要注意的一点是，我们不能通过`chown -R mysql:mysql mysql`来将软链接`mysql`指向的文件的所属者和所属组改变。
 
 
 ## mycli ##

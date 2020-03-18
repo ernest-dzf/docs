@@ -266,3 +266,119 @@ xxx.orig文件是冲突现场，解决完冲突后，可以选择将其删除掉
 ## git 恢复到之前某一次提交 ##
 
 有时候本地commit，但是不想把这个commit提交到远端，可以使用`git reset --hard xxxx`，然后再进行更改，push。
+
+## git 查看stage的变更
+
+```
+git diff --staged
+```
+
+## git查看2次commit的不同
+
+```
+git diff commit-1 commit-2
+```
+
+commit-1表示前一次提交，commit-2表示后一次提交。
+
+上面命令将展示出commit-2相对于commit-1的不同之处。
+
+## git查看当前commit 版本号
+
+```
+git rev-parse HEAD
+```
+
+## git merge合并代码
+- 开发分支（dev）上的代码达到上线的标准后，要合并到 master 分支
+
+  ```shell
+  git checkout dev
+  git pull
+  git checkout master
+  git merge dev
+  git push -u origin master
+  ```
+
+- 当master代码改动了，需要更新开发分支（dev）上的代码
+
+	```shell
+	git checkout master 
+  git pull 
+  git checkout dev
+  git merge master 
+  git push -u origin dev
+	```
+
+## git stash
+
+当前分支工作区间已经修改了一些类容，但是你不想提交。这时候你直接`git checkout xxxx`是不能切到另外一个分支的。使用`git stash`可以解决。
+
+```
+git stash [save message]
+```
+
+这样工作目录就干净了，切到另外一个分支之后，你可以使用
+
+```
+git stash pop
+```
+
+将stash栈顶的内容应用到当前工作目录上，**只能恢复一次**，回复之后对应的贮藏就会被从栈顶拿走。
+
+你可以认为stash有一个栈，使用
+
+```
+git stash list
+```
+
+可以查看，
+
+```
+stash@{0}: On master: configuration file
+(END)
+```
+
+你也可以删除某个贮藏，
+
+```
+git stash drop stash@{num}
+```
+
+你也可以将整个stash清除，
+
+```
+git stash clear
+```
+
+你也可以单独应用某个stash，
+
+```
+git stash apply stash@{num}
+```
+
+num为你使用`git stash list`看到的数字。
+
+## 统计本地分支和跟踪的远程分支的差异commit
+
+先更新本地的远程分支，`git fetch origin`，
+
+然后比较本地分支和远程分支的差异，
+
+`git log master..origin/master`
+
+## 如何知道当前分支是从哪个分支的哪个commit长出来的
+
+```
+git reflog show branch-name
+```
+
+## git checkout -b
+
+`git checkout -b mybranch`，创建并切换到分支mybranch。
+
+记住，这里创建并切换到分支`mybranch`是以你当前local的记录为准的。有可能你当前local记录落后origin。
+
+如果是要以远程的分支为基准去创建，该这样做
+
+`git checkout -b mybranch origin/mybranch`

@@ -25,7 +25,7 @@ sql-bench是 mysql自带做基准测试的工具，在mysql目录下有个sql-be
 	bin.000002  bin.000006  bin.000010  error.log       ib_logfile1  test                victor
 	bin.000003  bin.000007  bin.000011  ib_buffer_pool  mysql        undo001             victor2.pid
 	[root@victor2 3306]# 
-	
+
 `ibdata1`就是共享表空间文件。
 
 ibdata1是InnoDB的共有表空间，默认情况下会把表空间存放在一个文件ibdata1中，会造成这个文件越来越大。
@@ -194,7 +194,7 @@ sync_binlog不为1的时候，写到操作系统文件缓存，就开始传binlo
 	mysql root@localhost:(none)> show binlog events in 'bin.000011'\G
 
 
-##mysql pid文件##
+##mysql pid文件
 
 未指定 pid 文件时，pid 文件默认名为 主机名.pid，存放的路径在默认 MySQL 的数据目录。
 
@@ -245,7 +245,7 @@ GTID 模式实例和非GTID模式实例是不能进行复制的，要求非常�
 	gtid_mode = on
 	enforce_gtid_consistency = 1
 	log_slave_updates   = 1
-	
+
 任意一个参数不开启则都会报错：
 
 ## show master logs
@@ -280,19 +280,19 @@ GTID 模式实例和非GTID模式实例是不能进行复制的，要求非常�
 比如我们在一个binlog文件中的末尾看到类似这样的东西：
 
 	……
-    593 #190703  2:02:53 server id 1234567  end_log_pos 65429 CRC32 0x038a3adf  Stop                         
-    594 DELIMITER ;
-    595 # End of log file
-    596 ROLLBACK /* added by mysqlbinlog */;
-    597 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;                                                 
-    598 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+	593 #190703  2:02:53 server id 1234567  end_log_pos 65429 CRC32 0x038a3adf  Stop                         
+	594 DELIMITER ;
+	595 # End of log file
+	596 ROLLBACK /* added by mysqlbinlog */;
+	597 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;                                                 
+	598 /*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 
 可以看到`end_log_pos`是65429。其实这也是这个binlog文件的大小。
 
 	[root@victor2 3306]# ls -l bin.000001 
 	-rw-rw---- 1 mysql mysql 65429 7月   3 02:02 bin.000001
 	[root@victor2 3306]# 
-	
+
 
 
 
@@ -328,7 +328,7 @@ GTID 模式实例和非GTID模式实例是不能进行复制的，要求非常�
 	00000140  29 20 62 69 6e 61 72 79  20 44 45 46 41 55 4c 54  |) binary DEFAULT|                               
 	00000150  20 27 27 20 4e 4f 54 20  4e 55 4c 4c 2c 20 53 65  | '' NOT NULL, Se|                               
 	00000160  6c 65 63 74 5f 70 72 69  76 20 65 6e 75 6d 28 27  |lect_priv enum('|  
-	
+
 这里前四个字节固定是`fe 62 69 6e`。
 
 
@@ -366,8 +366,9 @@ binlog由一系列的binlog event构成。每个binlog event包含header和data�
 	| data   +----------------------------+
 	|        | variable part              |
 	+=====================================+
-	
-	
+
+
+​	
 还是以上面hexdump的结果为例，第一行为：
 
 	0000000  fe 62 69 6e 4c 9c 1b 5d  0f 87 d6 12 00 74 00 00  |.binL..].....t..|
@@ -386,7 +387,7 @@ binlog由一系列的binlog event构成。每个binlog event包含header和data�
       6 #190703  2:02:52 server id 1234567  end_log_pos 120 CRC32 0xe4a7fb9e    Start: binlog v 4, server v 5.
       6 6.44-log created 190703  2:02:52 at startup
       ……
-      
+
 可以看到第一个event的时间为`190703  2:02:52`，也就是`2019-07-03 02:02:52`，对应的unix时间戳为1562090572，转换为16进制为`5d1b9c4c`，刚好是上面hexdump出来的第5-8字节。这里也可以看到binlog是小端字节序。
 
 
@@ -479,8 +480,9 @@ event的类型就是通过上面的`type_code`来确定。
 	#read_buffer_size = 16777216
 	#read_rnd_buffer_size = 33554432
 	#sort_buffer_size = 33554432
-	
-	
+
+
+​	
 	########log settings########
 	log_error = /data/3306/error.log
 	slow_query_log = 1
@@ -492,9 +494,10 @@ event的类型就是通过上面的`type_code`来确定。
 	expire_logs_days = 90
 	long_query_time = 1
 	min_examined_row_limit = 100
-	
-	
-	
+
+
+​	
+​	
 	########replication settings########
 	master_info_repository = TABLE
 	relay_log_info_repository = TABLE
@@ -538,7 +541,7 @@ event的类型就是通过上面的`type_code`来确定。
 
 victor2的配置如下：
 
-	
+
 	[mysqld]
 	
 	########basic settings########
@@ -564,8 +567,9 @@ victor2的配置如下：
 	#read_buffer_size = 16777216
 	#read_rnd_buffer_size = 33554432
 	#sort_buffer_size = 33554432
-	
-	
+
+
+​	
 	########log settings########
 	log_error = /data/3306/error.log
 	slow_query_log = 1
@@ -577,9 +581,10 @@ victor2的配置如下：
 	expire_logs_days = 90
 	long_query_time = 1
 	min_examined_row_limit = 100
-	
-	
-	
+
+
+​	
+​	
 	########replication settings########
 	master_info_repository = TABLE
 	relay_log_info_repository = TABLE
@@ -639,7 +644,7 @@ victor2的配置如下：
 	1 row in set
 	Time: 0.008s
 	mysql root@localhost:(none)>
-	
+
 记住`File`，`Position`这两个的值。
 
 同时需要在主db上创建同步用的账户。
@@ -662,7 +667,7 @@ victor2的配置如下：
 然后执行
 
 	start slave;
-	
+
 通过`show slave status`查看主备复制是否ok。
 
 	***************************[ 1. row ]***************************                                             
@@ -720,8 +725,9 @@ victor2的配置如下：
 	Retrieved_Gtid_Set            |
 	Executed_Gtid_Set             |
 	Auto_Position                 | 0
-	
-	
+
+
+​	
 可以看到io线程（Slave\_IO\_Running）和sql线程（Slave\_SQL\_Running）都ok了，说明主备复制成功建立了。
 
 通过`show processlist`也可以看到sql线程和io线程。
@@ -774,11 +780,9 @@ victor2的配置如下：
 
 	当前I/O线程正在读取的主服务器二进制日志文件的名称。
 	
-	
 - Read\_Master\_Log\_Pos
 
 	当前I/O线程正在读取的主db二进制日志的位置。
-	
 	
 - Relay\_Log\_File
 
@@ -839,7 +843,6 @@ When you use SET GLOBAL sql_slave_skip_counter to skip events and the result is 
 	
 	主库显式的在一个事务中操作事务表+非事务表，实际上所有对事务表的操作是在同一个显式事务中；所有对非事务表的操作，每条SQL语句单独对应一个事务
 	
-	
 - Exec\_Master\_Log\_Pos
 
 	slave SQL线程当前执行的事件，对应在master相应的二进制日志中的position。	
@@ -848,5 +851,5 @@ When you use SET GLOBAL sql_slave_skip_counter to skip events and the result is 
 	
 ## 同一个事务中操作事务表和非事务表
 
-	
+
 ## start slave sql\_thread

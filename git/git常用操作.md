@@ -1,4 +1,4 @@
-# git常用操作 #
+# git常用操作 
 
 ## git代理
 
@@ -22,6 +22,12 @@
   ```
   git config --global --unset http.proxy
   git config --global --unset https.proxy
+  ```
+
+- 针对当前项目设置代理
+
+  ```
+  git config --local https.proxy https://127.0.0.1:12639
   ```
 
   
@@ -382,3 +388,4 @@ git reflog show branch-name
 如果是要以远程的分支为基准去创建，该这样做
 
 `git checkout -b mybranch origin/mybranch`
+

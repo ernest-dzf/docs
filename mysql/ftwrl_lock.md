@@ -12,6 +12,16 @@
 
 需要用到的权限：`RELOAD`，`LOCK TABLE`
 
+由于FTWRL总共需要持有两把全局的MDL锁，并且还需要关闭所有表对象，因此这个命令的杀伤性很大，执行命令时容易导致库hang住。如果是主库，则业务无法正常访问；如果是备库，则会导致SQL线程卡住，主备延迟。
+
+
+
+## FTWRL做了哪些操作
+
+1. 上全局读锁(lock_global_read_lock)
+2. 清理表缓存(close_cached_tables)
+3. 上全局COMMIT锁(make_global_read_lock_block_commit)
+
 **总结**
 
 1. `FLUSH TABLES`关闭所有打开的表，强制关闭所有正在使用的表，并刷新查询缓存和预准备语句缓存，不会刷新脏块 

@@ -36,29 +36,31 @@ func main() {
 
 这种方式也可以，但是首先我们要保证这个变量在多线程下的安全，基于此，有一种更好的方式：chan + select 。
 
-	func main() {
-		stop := make(chan bool)
-	
-		go func() {
-			for {
-				select {
-				case <-stop:
-					fmt.Println("监控退出，停止了...")
-					return
-				default:
-					fmt.Println("goroutine监控中...")
-					time.Sleep(2 * time.Second)
-				}
+```go
+func main() {
+	stop := make(chan bool)
+
+	go func() {
+		for {
+			select {
+			case <-stop:
+				fmt.Println("监控退出，停止了...")
+				return
+			default:
+				fmt.Println("goroutine监控中...")
+				time.Sleep(2 * time.Second)
 			}
-		}()
-	
-		time.Sleep(10 * time.Second)
-		fmt.Println("可以了，通知监控停止")
-		stop<- true
-		//为了检测监控过是否停止，如果没有监控输出，就表示停止了
-		time.Sleep(5 * time.Second)
-	
-	}
+		}
+	}()
+
+	time.Sleep(10 * time.Second)
+	fmt.Println("可以了，通知监控停止")
+	stop<- true
+	//为了检测监控过是否停止，如果没有监控输出，就表示停止了
+	time.Sleep(5 * time.Second)
+
+}
+```
 
 有了以上的逻辑，我们就可以在其他goroutine中，给stop chan发送值了，例子中是在main goroutine中发送的，控制让这个监控的goroutine结束。
 
@@ -112,14 +114,16 @@ func main() {
 
 下面是Context接口的定义：
 
-	type Context interface {
-		Deadline() (deadline time.Time, ok bool)
-		Done() <-chan struct{}
-	
-		Err() error
-	
-		Value(key interface{}) interface{}
-	}
+```go
+type Context interface {
+	Deadline() (deadline time.Time, ok bool)
+	Done() <-chan struct{}
+
+	Err() error
+
+	Value(key interface{}) interface{}
+}
+```
 
 可以看到`ctx.Done()`返回一个channel，上面例子中`cancel()`函数触发了`ctx.Done()`返回一个关闭的通道，然后子协程中，监控到了这个事件。（读取一个已关闭的 channel 时，总是能读取到对应类型的零值）
 
@@ -128,31 +132,33 @@ func main() {
 
 使用Context控制一个goroutine的例子如上，非常简单，下面我们看看控制多个goroutine的例子，其实也比较简单。
 
-	func main() {
-		ctx, cancel := context.WithCancel(context.Background())
-		go watch(ctx,"【监控1】")
-		go watch(ctx,"【监控2】")
-		go watch(ctx,"【监控3】")
-	
-		time.Sleep(10 * time.Second)
-		fmt.Println("可以了，通知监控停止")
-		cancel()
-		//为了检测监控过是否停止，如果没有监控输出，就表示停止了
-		time.Sleep(5 * time.Second)
-	}
-	
-	func watch(ctx context.Context, name string) {
-		for {
-			select {
-			case <-ctx.Done():
-				fmt.Println(name,"监控退出，停止了...")
-				return
-			default:
-				fmt.Println(name,"goroutine监控中...")
-				time.Sleep(2 * time.Second)
-			}
+```go
+func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	go watch(ctx,"【监控1】")
+	go watch(ctx,"【监控2】")
+	go watch(ctx,"【监控3】")
+
+	time.Sleep(10 * time.Second)
+	fmt.Println("可以了，通知监控停止")
+	cancel()
+	//为了检测监控过是否停止，如果没有监控输出，就表示停止了
+	time.Sleep(5 * time.Second)
+}
+
+func watch(ctx context.Context, name string) {
+	for {
+		select {
+		case <-ctx.Done():
+			fmt.Println(name,"监控退出，停止了...")
+			return
+		default:
+			fmt.Println(name,"goroutine监控中...")
+			time.Sleep(2 * time.Second)
 		}
 	}
+}
+```
 
 
 示例中启动了3个监控goroutine进行不断的监控，每一个都使用了Context进行跟踪，当我们使用cancel函数通知取消时，这3个goroutine都会被结束。
@@ -164,15 +170,17 @@ func main() {
 
 再来看下context的接口定义。
 
-	type Context interface {
-		Deadline() (deadline time.Time, ok bool)
-	
-		Done() <-chan struct{}
-	
-		Err() error
-	
-		Value(key interface{}) interface{}
-	}
+```go
+type Context interface {
+	Deadline() (deadline time.Time, ok bool)
+
+	Done() <-chan struct{}
+
+	Err() error
+
+	Value(key interface{}) interface{}
+}
+```
 
 - `Deadline`
 
@@ -195,36 +203,40 @@ func main() {
 Context取消的时候，我们就可以得到一个关闭的chan，关闭的chan是可以读取的，所以只要可以读取的时候，就意味着收到Context取消的信号了，以下是这个方法的经典用法。
 
 
-	  func Stream(ctx context.Context, out chan<- Value) error {
-	  	for {
-	  		v, err := DoSomething(ctx)
-	  		if err != nil {
-	  			return err
-	  		}
-	  		select {
-	  		case <-ctx.Done():
-	  			return ctx.Err()
-	  		case out <- v:
-	  		}
-	  	}
-	  }
+```go
+  func Stream(ctx context.Context, out chan<- Value) error {
+  	for {
+  		v, err := DoSomething(ctx)
+  		if err != nil {
+  			return err
+  		}
+  		select {
+  		case <-ctx.Done():
+  			return ctx.Err()
+  		case out <- v:
+  		}
+  	}
+  }
+```
 
 
 Context接口并不需要我们实现，Go内置已经帮我们实现了2个，我们代码中最开始都是以这两个内置的作为最顶层的partent context，衍生出更多的子Context。
 
 
-	var (
-		background = new(emptyCtx)
-		todo       = new(emptyCtx)
-	)
-	
-	func Background() Context {
-		return background
-	}
-	
-	func TODO() Context {
-		return todo
-	}
+```go
+var (
+	background = new(emptyCtx)
+	todo       = new(emptyCtx)
+)
+
+func Background() Context {
+	return background
+}
+
+func TODO() Context {
+	return todo
+}
+```
 
 一个是`Background`，主要用于main函数、初始化以及测试代码中，作为Context这个树结构的最顶层的Context，也就是根Context。
 
@@ -233,23 +245,25 @@ Context接口并不需要我们实现，Go内置已经帮我们实现了2个，�
 
 它们两个本质上都是emptyCtx结构体类型，是一个不可取消，没有设置截止时间，没有携带任何值的Context。
 
-	type emptyCtx int
-	
-	func (*emptyCtx) Deadline() (deadline time.Time, ok bool) {
-		return
-	}
-	
-	func (*emptyCtx) Done() <-chan struct{} {
-		return nil
-	}
-	
-	func (*emptyCtx) Err() error {
-		return nil
-	}
-	
-	func (*emptyCtx) Value(key interface{}) interface{} {
-		return nil
-	}
+```go
+type emptyCtx int
+
+func (*emptyCtx) Deadline() (deadline time.Time, ok bool) {
+	return
+}
+
+func (*emptyCtx) Done() <-chan struct{} {
+	return nil
+}
+
+func (*emptyCtx) Err() error {
+	return nil
+}
+
+func (*emptyCtx) Value(key interface{}) interface{} {
+	return nil
+}
+```
 
 
 这就是emptyCtx实现Context接口的方法，可以看到，这些方法什么都没做，返回的都是nil或者零值。
@@ -259,10 +273,12 @@ Context接口并不需要我们实现，Go内置已经帮我们实现了2个，�
 
 有了如上的根Context，那么是如何衍生更多的子Context的呢？这就要靠context包为我们提供的With系列的函数了。
 
-	func WithCancel(parent Context) (ctx Context, cancel CancelFunc)
-	func WithDeadline(parent Context, deadline time.Time) (Context, CancelFunc)
-	func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc)
-	func WithValue(parent Context, key, val interface{}) Context
+```go
+func WithCancel(parent Context) (ctx Context, cancel CancelFunc)
+func WithDeadline(parent Context, deadline time.Time) (Context, CancelFunc)
+func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc)
+func WithValue(parent Context, key, val interface{}) Context
+```
 
 
 这四个With函数，接收的都有一个parent参数，就是父Context，我们要基于这个父Context创建出子Context的意思，这种方式可以理解为子Context对父Context的继承，也可以理解为基于父Context的衍生。
@@ -285,34 +301,36 @@ Context接口并不需要我们实现，Go内置已经帮我们实现了2个，�
 
 通过Context我们也可以传递一些必须的元数据，这些数据会附加在Context上以供使用。
 
-	var key string="name"
-	
-	func main() {
-		ctx, cancel := context.WithCancel(context.Background())
-		//附加值
-		valueCtx:=context.WithValue(ctx,key,"【监控1】")
-		go watch(valueCtx)
-		time.Sleep(10 * time.Second)
-		fmt.Println("可以了，通知监控停止")
-		cancel()
-		//为了检测监控过是否停止，如果没有监控输出，就表示停止了
-		time.Sleep(5 * time.Second)
-	}
-	
-	func watch(ctx context.Context) {
-		for {
-			select {
-			case <-ctx.Done():
-				//取出值
-				fmt.Println(ctx.Value(key),"监控退出，停止了...")
-				return
-			default:
-				//取出值
-				fmt.Println(ctx.Value(key),"goroutine监控中...")
-				time.Sleep(2 * time.Second)
-			}
+```go
+var key string="name"
+
+func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	//附加值
+	valueCtx:=context.WithValue(ctx,key,"【监控1】")
+	go watch(valueCtx)
+	time.Sleep(10 * time.Second)
+	fmt.Println("可以了，通知监控停止")
+	cancel()
+	//为了检测监控过是否停止，如果没有监控输出，就表示停止了
+	time.Sleep(5 * time.Second)
+}
+
+func watch(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			//取出值
+			fmt.Println(ctx.Value(key),"监控退出，停止了...")
+			return
+		default:
+			//取出值
+			fmt.Println(ctx.Value(key),"goroutine监控中...")
+			time.Sleep(2 * time.Second)
 		}
 	}
+}
+```
 
 在前面的例子，我们通过传递参数的方式，把name的值传递给监控函数。在这个例子里，我们实现一样的效果，但是通过的是Context的Value的方式。
 

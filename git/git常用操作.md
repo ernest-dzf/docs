@@ -30,7 +30,13 @@
   git config --local https.proxy https://127.0.0.1:12639
   ```
 
+- 针对某个域名设置代理
 
+  ```shell
+  git config --global http.https://github.com.proxy http://127.0.0.1:12639
+  ```
+
+  
 
 
 ## git配置文件

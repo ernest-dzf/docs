@@ -107,5 +107,12 @@ AUFS是一个能透明覆盖一个或多个现有文件系统的层状文件系�
 
 在Docker中，底下的只读层就是image，可写层就是Container。
 
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/docker_aufs.png)
+
 ### OverlayFS
 
+Overlay是Linux内核3.18后支持的，也是一种Union FS，和AUFS的多层不同的是Overlay只有两层：一个upper文件系统和一个lower文件系统，分别代表Docker的容器层和镜像层。
+
+当需要修改一个文件时，使用CoW将文件从只读的lower复制到可写的upper进行修改，结果也保存在upper层。
+
+在Docker中，底下的只读层就是image，可写层就是Container。

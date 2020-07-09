@@ -238,9 +238,31 @@ root@82157fef780a:/#
 
 前提是你已经通过`docker image pull `把ubuntu镜像拉下来了。
 
+### 启动一个mysql容器
 
+```shell
+# root @ localhost in /usr/bin [2:06:20]
+$ docker image pull mysql:5.6
+5.6: Pulling from library/mysql
+7d2977b12acb: Pull complete
+5fb8400e7f07: Pull complete
+234877fbb165: Pull complete
+6fe1021f12f3: Pull complete
+7e36fe6b53f0: Pull complete
+996ec709c11b: Pull complete
+5198b7523387: Pull complete
+cc9bdad4dcc0: Pull complete
+380cd37ad979: Pull complete
+d64465acf034: Pull complete
+d4ee6606b3ab: Pull complete
+Digest: sha256:2bf1a0a05a6ad437dcac6689e48a9c33774ac92c6213fce2c4196343210592f3
+Status: Downloaded newer image for mysql:5.6
+docker.io/library/mysql:5.6
 
+# root @ localhost in /usr/bin [2:06:52]
+```
 
+可以指定tag拉取mysql镜像。
 
 
 
@@ -250,7 +272,11 @@ root@82157fef780a:/#
 
 我们知道通过 `docker image pull` 可以拉取镜像，那拉下来的镜像存在哪里呢？
 
-默认的话，
+Docker 的镜像是分层存储，每一个镜像都是由很多层，很多个文件组成。
+
+而不同的镜像是共享相同的层的，所以这是一个树形结构，不存在具体哪个文件是 pull 下来的镜像的问题。
+
+不过我们可以在这里看下镜像的repository信息，
 
 ```shell
 # root @ localhost in /var/lib/docker/image/overlay2 [0:43:27]
@@ -272,7 +298,134 @@ $ cat repositories.json |jq
 $
 ```
 
-是在`/var/lib/docker/image`下面。
+如果采用的是`overlay2`存储驱动 ,是在`/var/lib/docker/image`下面。
+
+docker会在`/var/lib/docker/image`目录下按每个存储驱动的名字创建一个目录，上面例子就是 `overlay2`驱动。
+
+我们 tree看一下目录结构，
+
+```shell
+# root @ localhost in /var/lib/docker/image/overlay2 [0:16:30] C:127
+$ tree -L 2
+.
+├── distribution
+│   ├── diffid-by-digest
+│   └── v2metadata-by-diffid
+├── imagedb
+│   ├── content
+│   └── metadata
+├── layerdb
+│   ├── mounts
+│   ├── sha256
+│   └── tmp
+└── repositories.json
+
+10 directories, 1 file
+
+# root @ localhost in /var/lib/docker/image/overlay2 [0:16:34]
+$
+```
+
+这里的关键地方是`imagedb`和`layerdb`目录，看这个目录名字，很明显就是专门用来存储元数据的地方，那为什么区分image和layer呢？因为在docker中，image是由多个layer组合而成的，换句话就是，layer是一个共享的层，可能有多个image会指向同一个layer。
+
+**那如何知道某个image包含哪些layer呢？**
+
+答案就在`imagedb`这个目录中去找。
+
+```shell
+# root @ localhost in /var/lib/docker/image/overlay2/imagedb/content/sha256 [1:00:37]
+$ ls
+2622e6cca7ebbb6e310743abce3fc47335393e79171b9d76ba9d4f446ce7b163
+74435f89ab7825e19cf8c92c7b5c5ebd73ae2d0a2be16f49b3fb81c9062ab303
+8de95e6026c348c1206d35a9ba7a043ff71885573dace41b14e4236c44cba593
+9cfcce23593a93135ca6dbf3ed544d1db9324d4c40b5c0d56958165bfaa2d46a
+be0dbf01a0f3f46fc8c88b67696e74e7005c3e16d9071032fa0cd89773771576
+bf756fb1ae65adf866bd8c456593cd24beb6a0a061dedf42b26a993176745f6b
+# root @ localhost in /var/lib/docker/image/overlay2/imagedb/content/sha256 [1:01:16]
+$ docker image ls
+REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
+ubuntu              latest              74435f89ab78        3 weeks ago         73.9MB
+nginx               latest              2622e6cca7eb        4 weeks ago         132MB
+mysql               5.6                 8de95e6026c3        4 weeks ago         302MB
+mysql               5.7                 9cfcce23593a        4 weeks ago         448MB
+mysql               latest              be0dbf01a0f3        4 weeks ago         541MB
+hello-world         latest              bf756fb1ae65        6 months ago        13.3kB
+
+# root @ localhost in /var/lib/docker/image/overlay2/imagedb/content/sha256 [1:01:19]
+$
+```
+
+可以看到`/var/lib/docker/image/overlay2/imagedb/content/sha256`下面5个文件对应的就是5个镜像的ID。
+
+我们以`mysql`这个镜像为例（9cfcce23593a93135ca6dbf3ed544d1db9324d4c40b5c0d56958165bfaa2d46a）。
+
+```shell
+# root @ localhost in /var/lib/docker/image/overlay2/imagedb/content/sha256 [0:24:24]
+$ cat 9cfcce23593a93135ca6dbf3ed544d1db9324d4c40b5c0d56958165bfaa2d46a|jq
+
+{
+	...
+  "rootfs": {
+    "type": "layers",
+    "diff_ids": [
+      "sha256:13cb14c2acd34e45446a50af25cb05095a17624678dbafbcc9e26086547c1d74",
+      "sha256:365386a39e0ea80fcf2a4e3a3cd0e490f073d976133b96dd7f5e2cd1579a8ff5",
+      "sha256:c3f46b20a0d3c6532ec63cb2f5475a0a33c8e4c2f22a0a2184d7d79d2f970b37",
+      "sha256:66c45123fd43c21cc8be641b73bf2747adf326c6e07d08eadf9b6c829ad575b3",
+      "sha256:61cbb8ea64815ee524388e222d32855953ff71bce2a2049185232b3c0463fa93",
+      "sha256:44853bb6727490ada4379f3348acbf52b3e7abb63427ce42ca118e11a7b94018",
+      "sha256:3a2464d8e0c0697f6fb252a602a6ab95542e5ad10aacc9277d269a182db8dc30",
+      "sha256:91ae264962fbfc55b25a1b59378024ef08833c7003823136e73f43985ecda5ee",
+      "sha256:8f0182ef7c8cff5ae6b305dff6d7555a249a1e24bfbd94e4f25e75090e763ae3",
+      "sha256:ac76579057880b4e115cc46f952aa9b1c92f1f2adbca8ebba810951200e9c288",
+      "sha256:c90a34afcab00e4d70d1672b27c4780f6eb881b6cd51c3da492497b15be0b24d"
+    ]
+  }
+}
+```
+
+关注rootfs下的diff_ids字段，共有11个元素，其实这11个元素正是对应`mysql`镜像的11个layer，从上往下看，就是底层到顶层，也就是说`13cb14c2acd34e4...`是image的最底层。
+
+既然得到了组成这个image的所有layerID，那么我们就可以带着这些layerID去寻找对应的layer了。
+
+首先看最底层，`13cb14c2acd34e45446a50af25cb05095a17624678dbafbcc9e26086547c1d74`。
+
+我们可以再`/var/lib/docker/image/overlay2/layerdb/sha256/`目录下找到他。
+
+```shell
+# root @ localhost in /var/lib/docker/image/overlay2/layerdb/sha256 [23:54:59]
+$ ls -ld 13cb14c2acd34e45446a50af25cb05095a17624678dbafbcc9e26086547c1d74
+drwx------. 2 root root 71 7月   1 01:24 13cb14c2acd34e45446a50af25cb05095a17624678dbafbcc9e26086547c1d74
+
+# root @ localhost in /var/lib/docker/image/overlay2/layerdb/sha256 [23:55:07]
+$ cd 13cb14c2acd34e45446a50af25cb05095a17624678dbafbcc9e26086547c1d74
+
+# root @ localhost in /var/lib/docker/image/overlay2/layerdb/sha256/13cb14c2acd34e45446a50af25cb05095a17624678dbafbcc9e26086547c1d74 [23:55:13]
+$ ls
+cache-id  diff  size  tar-split.json.gz
+
+# root @ localhost in /var/lib/docker/image/overlay2/layerdb/sha256/13cb14c2acd34e45446a50af25cb05095a17624678dbafbcc9e26086547c1d74 [23:55:14]
+$
+```
+
+那是不是说`365386a39e0ea80fcf2a4e3a3cd0e490f073d976133b96dd7f5e2cd1579a8ff5`就是第二层呢？其实不是的！
+
+docker 使用chainID来追踪一个镜像的除最底层的其他layer。
+
+chainID的取值 如下计算：
+
+- 若该镜像层是最底层，那么其chainID 和 diffID （`cat /var/lib/docker/image/overlay2/layerdb/sha256/13cb14c2acd34e45446a50af25cb05095a17624678dbafbcc9e26086547c1d74/diff `）相同。上面也谈到一个镜像的rootfs下面的diff_ids对应这个镜像的不同的layer。比如上面谈的的mysql镜像，最底层是`13cb14c2acd34e45446a50af25cb05095a17624678dbafbcc9e26086547c1d74`。那么我们就可以在`/var/lib/docker/image/overlay2/layerdb/sha256/`找到他。
+- 否则，chainID=sha256(父层chainID+" "+本层diffID)
+
+```shell
+$ echo -n "sha256:13cb14c2acd34e45446a50af25cb05095a17624678dbafbcc9e26086547c1d74 sha256:365386a39e0ea80fcf2a4e3a3cd0e490f073d976133b96dd7f5e2cd1579a8ff5"|sha256sum
+b17c024283d0302615c6f0c825137da9db607d49a83d2215a79733afbbaeb7c3  -
+```
+
+
+
+
+
 
 ### docker镜像生成的container存在哪儿？
 
@@ -379,6 +532,23 @@ $
     ```
 
     搜索到这个镜像，我们就可以使用`docker image pull ubuntu`把这个镜像拉下来，然后使用`docker container run -it ubuntu bash`生成一个运行的容器实例，并进入他的bash。
+    
+12. 优雅地停止一个运行的容器，`docker stop ContainerId`，`docker stop -t=60`，`-t`参数，关闭容器的限时，如果超时未能关闭则用`docker kill`强制关闭，默认值10s，这个时间用于容器的自己保存状态。
+
+13. 直接关闭容器，`docker kill ContainerId`。与`docker stop`的区别，参见这里，https://www.jb51.net/article/96617.htm。
+
+14. 重启容器服务，`docker restart ContainerId`，也可以加`-t`参数，含义和`docker stop -t `中的`-t`一样。
+
+15. `docker run -i -t -d`，`-i, -t, -d`参数，这些表示啥呢？
+
+    - `-d`，表示在后台运行。在不指定`-d`的情况下，容器默认是前台运行的，可以看到容器运行时候的输入输出以及错误信息日志。
+    - `-i`，Keep STDIN open even if not attached。
+    - xxxx
+    - xxxx
+    - xxxx
+    - xxx
+
+16. `docker exec -it ${CONTAINER NAME/ID} /bin/bash`，进入容器内
 
 ## 参考
 

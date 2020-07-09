@@ -33,7 +33,7 @@ $
 
 ```
 
-上面的示例是从docker官方镜像仓库拉取一个nginx:latest镜像，可以看到在拉取镜像时，是一层一层的拉取的。
+上面的示例是从docker官方镜像仓库拉取一个nginx:latest镜像，可以看到在拉取镜像时，是一层一层地拉取的。
 
 事实上镜像也是这么一层一层地存储在磁盘上的。通常一个应用镜像包含多层，如下：
 
@@ -93,6 +93,29 @@ docker提供了多种存储驱动来实现不同的方式存储镜像，下面�
 - Btrfs
 - ZFS
 
+可以通过`docker info`查看当前所使用的存储 驱动，
+
+```shell
+# root @ localhost in /var/lib/docker/overlay2 [2:13:52]
+$ docker info
+Client:
+ Debug Mode: false
+
+Server:
+ Containers: 10
+  Running: 0
+  Paused: 0
+  Stopped: 10
+ Images: 3
+ Server Version: 19.03.12
+ Storage Driver: overlay2
+  Backing Filesystem: xfs
+  Supports d_type: true
+  ...
+```
+
+可以看到使用的是 overlay2。
+
 ### AUFS
 
 AUFS（AnotherUnionFS）是一种Union FS，是文件级的存储驱动。
@@ -116,3 +139,48 @@ Overlay是Linux内核3.18后支持的，也是一种Union FS，和AUFS的多层�
 当需要修改一个文件时，使用CoW将文件从只读的lower复制到可写的upper进行修改，结果也保存在upper层。
 
 在Docker中，底下的只读层就是image，可写层就是Container。
+
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/docker_overlayFS.jpg)
+
+我们根据镜像，使用`docker run xxxx`命令，运行一个容器之后，会有对应的containerID。默认是会在`/var/lib/docker/containers`目录下，
+
+```shell
+# root @ localhost in /var/lib/docker/containers [1:12:22]
+$ ls
+1a16698a9171bc346a1ab3f38af216e717961e37fef43a27d0bdff5b01312862
+39e2b86aafb681cb108ddba0d2bca4df78e4c6a076fce3645041e474ec8038c1
+4da4d33017bccec9f652b1367889e05ee69e3819377590b5a0ad0790d9ca8f2c
+51f328e0ef59d81656d96d2956edd79e4ffbd75c180abe8caa3942444f77e254
+60cb48e437a899c9098dd1f01c3c8bb706d83fd04cfbc6caee99f1d1e6688fbb
+73514c85ac1c77c18ff76753b9cf76b92a7aef57ede9d33c01e0c8f816347061
+82157fef780af00830d161c3aff0d119b3ce2c3af72f671f737f30cedde787b4
+99c34998fe083bd9e64d91b2116abdb7d0fdcb6aa0c176de624903f38e64610f
+c05163f474ee057edfb03e46226f68a25408add072f0b93c675851d09bfe57c4
+f7a6a316d34bcd72f31db72c89f873f130ce946091422607e227c3d8df276c07
+
+# root @ localhost in /var/lib/docker/containers [1:12:23]
+$
+```
+
+可以看到，这里有10个container。你使用`docker run xxx`，运行一个容器之后，这个容器就创建了。后面你可以通过`docker start -i containerID`来再次运行这个容器。
+
+每个容器有自己的读写层，你在容器里面创建修改的文件，都会保存在每个容器各自的读写层里。
+
+如果使用的是`overlay2`驱动，那么就是保存在`/var/lib/docker/overlay2`目录下。
+
+
+
+6e048e2f4d5aa3098ae07530a1da0ae9ec591f662fa443da13d59b20bed64b72-init
+
+
+
+51f328e0ef59
+
+
+
+## 参考文章
+
+1. [一步步了解 Docker 存储驱动](https://zhuanlan.zhihu.com/p/73147396)
+
+2.  [Docker镜像存储-overlayfs](https://www.cnblogs.com/wdliu/p/10483252.html)
+

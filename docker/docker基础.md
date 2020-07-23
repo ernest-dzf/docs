@@ -390,7 +390,7 @@ $ cat 9cfcce23593a93135ca6dbf3ed544d1db9324d4c40b5c0d56958165bfaa2d46a|jq
 
 首先看最底层，`13cb14c2acd34e45446a50af25cb05095a17624678dbafbcc9e26086547c1d74`。
 
-我们可以再`/var/lib/docker/image/overlay2/layerdb/sha256/`目录下找到他。
+我们可以在`/var/lib/docker/image/overlay2/layerdb/sha256/`目录下找到他。
 
 ```shell
 # root @ localhost in /var/lib/docker/image/overlay2/layerdb/sha256 [23:54:59]
@@ -415,12 +415,87 @@ docker 使用chainID来追踪一个镜像的除最底层的其他layer。
 chainID的取值 如下计算：
 
 - 若该镜像层是最底层，那么其chainID 和 diffID （`cat /var/lib/docker/image/overlay2/layerdb/sha256/13cb14c2acd34e45446a50af25cb05095a17624678dbafbcc9e26086547c1d74/diff `）相同。上面也谈到一个镜像的rootfs下面的diff_ids对应这个镜像的不同的layer。比如上面谈的的mysql镜像，最底层是`13cb14c2acd34e45446a50af25cb05095a17624678dbafbcc9e26086547c1d74`。那么我们就可以在`/var/lib/docker/image/overlay2/layerdb/sha256/`找到他。
+
+  ![cap](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/docker_bottomlayer.png)
+
 - 否则，chainID=sha256(父层chainID+" "+本层diffID)
 
+  ```shell
+  $ echo -n "sha256:13cb14c2acd34e45446a50af25cb05095a17624678dbafbcc9e26086547c1d74 sha256:365386a39e0ea80fcf2a4e3a3cd0e490f073d976133b96dd7f5e2cd1579a8ff5"|sha256sum
+  b17c024283d0302615c6f0c825137da9db607d49a83d2215a79733afbbaeb7c3  -
+  ```
+	比如上面，得到bottom layer的上一层是	`b17c024283d0302615c6f0c825137da9db607d49a83d2215a79733afbbaeb7c3`。
+	
+	```shell
+	# root @ localhost in /var/lib/docker/image/overlay2/layerdb/sha256 [0:33:51]
+	$ ls -ld b17c024283d0302615c6f0c825137da9db607d49a83d2215a79733afbbaeb7c3
+	drwx------. 2 root root 85 7月   7 00:59 b17c024283d0302615c6f0c825137da9db607d49a83d2215a79733afbbaeb7c3
+	
+	# root @ localhost in /var/lib/docker/image/overlay2/layerdb/sha256 [0:33:54]
+	$ cd b17c024283d0302615c6f0c825137da9db607d49a83d2215a79733afbbaeb7c3
+	
+	# root @ localhost in /var/lib/docker/image/overlay2/layerdb/sha256/b17c024283d0302615c6f0c825137da9db607d49a83d2215a79733afbbaeb7c3 [0:33:56]
+	$ ls
+	cache-id  diff  parent  size  tar-split.json.gz
+	
+	# root @ localhost in /var/lib/docker/image/overlay2/layerdb/sha256/b17c024283d0302615c6f0c825137da9db607d49a83d2215a79733afbbaeb7c3 [0:33:58]
+	$
+	```
+	
+	我们也在`/var/lib/docker/image/overlay2/layerdb/sha256`目录下找到他。
+
+依照上面的规则，我们可以在`/var/lib/docker/image/overlay2/layerdb/sha256`找到某个镜像所有的layer。
+
+使用如下的脚本，我们可以得出这个镜像的所有layerID。
+
 ```shell
-$ echo -n "sha256:13cb14c2acd34e45446a50af25cb05095a17624678dbafbcc9e26086547c1d74 sha256:365386a39e0ea80fcf2a4e3a3cd0e490f073d976133b96dd7f5e2cd1579a8ff5"|sha256sum
-b17c024283d0302615c6f0c825137da9db607d49a83d2215a79733afbbaeb7c3  -
+#!/bin/bash
+sha_array=("sha256:13cb14c2acd34e45446a50af25cb05095a17624678dbafbcc9e26086547c1d74" "sha256:365386a39e0ea80fcf2a4e3a3cd0e490f073d976133b96dd7f5e2cd1579a8ff5" "sha256:c3f46b20a0d3c6532ec63cb2f5475a0a33c8e4c2f22a0a2184d7d79d2f970b37" "sha256:66c45123fd43c21cc8be641b73bf2747adf326c6e07d08eadf9b6c829ad575b3" "sha256:61cbb8ea64815ee524388e222d32855953ff71bce2a2049185232b3c0463fa93" "sha256:44853bb6727490ada4379f3348acbf52b3e7abb63427ce42ca118e11a7b94018" "sha256:3a2464d8e0c0697f6fb252a602a6ab95542e5ad10aacc9277d269a182db8dc30" "sha256:91ae264962fbfc55b25a1b59378024ef08833c7003823136e73f43985ecda5ee" "sha256:8f0182ef7c8cff5ae6b305dff6d7555a249a1e24bfbd94e4f25e75090e763ae3" "sha256:ac76579057880b4e115cc46f952aa9b1c92f1f2adbca8ebba810951200e9c288" "sha256:c90a34afcab00e4d70d1672b27c4780f6eb881b6cd51c3da492497b15be0b24d")
+
+cnt=${#sha_array[@]}
+#echo $cnt
+
+lastlayer=${sha_array[0]}
+echo $lastlayer
+
+for ((integer = 1; integer < $cnt; integer++))
+do
+curlayer=`echo -n "$lastlayer ${sha_array[$integer]}"|sha256sum`
+curlayer=`echo $curlayer|sed "s/.$//"`##去除最后一个字符 -
+curlayer=`echo $curlayer|sed "s/^[ \s]\{1,\}//g;s/[ \s]\{1,\}$//g"`##去除前后空格
+curlayer="sha256:$curlayer"
+echo $curlayer
+lastlayer=$curlayer
+done
 ```
+
+如下，
+
+```shell
+# root @ localhost in ~ [1:20:56]
+$ ./test.sh
+sha256:13cb14c2acd34e45446a50af25cb05095a17624678dbafbcc9e26086547c1d74
+sha256:b17c024283d0302615c6f0c825137da9db607d49a83d2215a79733afbbaeb7c3
+sha256:57d29ad88aa49f0f439592755722e70710501b366e2be6125c95accc43464844
+sha256:12912c9ec523f648130e663d9d4f0a47c1841a0064d4152bcf7b2a97f96326eb
+sha256:c37206160543786228aa0cce738e85343173851faa44bb4dc07dc9b7dc4ff1c1
+sha256:b704a4a65bf536f82e5d8b86e633d19185e26313de8380162e778feb2852011a
+sha256:09687cd9cdf4c704fde969fdba370c2d848bc614689712bef1a31d0d581f2007
+sha256:ab8bf065b402b99aec4f12c648535ef1b8dc954b4e1773bdffa10ae2027d3e00
+sha256:c04c087c2af9abd64ba32fe89d65e6d83da514758923de5da154541cc01a3a1e
+sha256:17e8b88858e400f8c5e10e7cb3fbab9477f6d8aacba03b8167d34a91dbe4d8c1
+sha256:98de3e212919056def8c639045293658f6e6022794807d4b0126945ddc8324be
+
+# root @ localhost in ~ [1:20:59]
+$
+
+```
+
+不过需要注意的是，我们上面说的都是镜像以及镜像对应的layer的元数据。那真实的rootfs在哪里，以及如何构成的呢？
+
+关注`/var/lib/docker/image/overlay2/layerdb/sha256/xxxxxxxx/cache-id`。比如，
+
+
 
 
 
@@ -549,6 +624,8 @@ $
     - xxx
 
 16. `docker exec -it ${CONTAINER NAME/ID} /bin/bash`，进入容器内
+
+17. `docker run IMAGE[:TAG]`，run某个版本的镜像。比如`docker run -itd --name mysql-test -p 3307:3306 -e MYSQL_ROOT_PASSWORD=123456 mysql:5.6`，启动的就是mysql 5.6。
 
 ## 参考
 

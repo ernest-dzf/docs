@@ -5,7 +5,8 @@
 1. 安装依赖包
 
    ```shell
-   yum groupinstall "Development Libraries"
+   yum groupinstall "Development Libraries" ##这个可能不存在
+   yum groupinstall "Additional Development"
    yum install glib2-devel mysql-devel zlib-devel pcre-devel openssl-devel cmake make
    ```
 

@@ -416,3 +416,12 @@ git reflog show branch-name
 
 `git checkout -b mybranch origin/mybranch`
 
+## 配置local项目的user
+
+有时候不想配置全局的user name和email，那么可以仅配置当前项目的user和email。
+
+```
+git config user.name wind
+git config user.email xxxx@qq.com
+```
+

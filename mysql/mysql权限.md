@@ -174,7 +174,15 @@ mysql权限表的验证过程为：
 
 ### 具体权限说明 ###
 
+可以先参考官方的说明，
 
+https://dev.mysql.com/doc/refman/5.6/en/privileges-provided.html#priv_index。
+
+- INDEX
+
+  INDEX权限是针对存在的表。有了这个，你就可以创建索引或者drop 索引。当然你如果有CREATE权限的话，你是可以再DDL中指定索引的。
+
+- 
 
 
 ## 实际操作举例

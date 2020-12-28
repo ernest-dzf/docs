@@ -298,7 +298,7 @@ $ cat repositories.json |jq
 $
 ```
 
-如果采用的是`overlay2`存储驱动 ,是在`/var/lib/docker/image`下面。
+如果采用的是`overlay2`存储驱动 ,是在`/var/lib/docker/image/overlay2`下面。
 
 docker会在`/var/lib/docker/image`目录下按每个存储驱动的名字创建一个目录，上面例子就是 `overlay2`驱动。
 
@@ -357,7 +357,7 @@ $
 
 可以看到`/var/lib/docker/image/overlay2/imagedb/content/sha256`下面5个文件对应的就是5个镜像的ID。
 
-我们以`mysql`这个镜像为例（9cfcce23593a93135ca6dbf3ed544d1db9324d4c40b5c0d56958165bfaa2d46a）。
+我们以`mysql 5.7`这个镜像为例（9cfcce23593a93135ca6dbf3ed544d1db9324d4c40b5c0d56958165bfaa2d46a）。
 
 ```shell
 # root @ localhost in /var/lib/docker/image/overlay2/imagedb/content/sha256 [0:24:24]
@@ -491,15 +491,205 @@ $
 
 ```
 
-不过需要注意的是，我们上面说的都是镜像以及镜像对应的layer的元数据。那真实的rootfs在哪里，以及如何构成的呢？
+不过需要注意的是，我们上面说的都是镜像以及镜像对应的layer的元数据。那每一层的layer的数据是存放在哪里的呢？
 
-关注`/var/lib/docker/image/overlay2/layerdb/sha256/xxxxxxxx/cache-id`。比如，
+### layerdb，镜像layer的元数据
+
+关注`/var/lib/docker/image/overlay2/layerdb/sha256`下面的目录。
+
+```bash
+# root @ localhost in /var/lib/docker/image/overlay2/layerdb/sha256 [1:47:14] C:2
+$ ls
+059442698ef65fe8545e4fe9657988a10329b9c3663b368ae7ee0007a9c43949
+086d66e8d1cb0d52e9337eabb11fb9b95960e2e1628d90100c62ea5e8bf72306
+09687cd9cdf4c704fde969fdba370c2d848bc614689712bef1a31d0d581f2007
+12912c9ec523f648130e663d9d4f0a47c1841a0064d4152bcf7b2a97f96326eb
+13389dfab8e64fcaafadde604432773a493c89d7c6ad6c9075547db0c7e9e31b
+13cb14c2acd34e45446a50af25cb05095a17624678dbafbcc9e26086547c1d74
+1644f130455c90b0fe2b32b80ffa2d285cacdb21e13b717b370d4df0e63e6778
+17e8b88858e400f8c5e10e7cb3fbab9477f6d8aacba03b8167d34a91dbe4d8c1
+...
+f37c61ee1973b18c285d0d5fcf02da4bcdb1f3920981499d2a20b2858500a110
+```
+
+前面说过，`/var/lib/docker/image/overlay2/layerdb/sha256`下面存放的是镜像的各层layer的元数据，我们看下有哪些。
+
+还是以`mysql 5.7`镜像为例，以倒数第二层`b17c024283d0302615c6f0c825137da9db607d49a83d2215a79733afbbaeb7c3`为例。
+
+```bash
+# root @ localhost in /var/lib/docker/image/overlay2/layerdb/sha256/b17c024283d0302615c6f0c825137da9db607d49a83d2215a79733afbbaeb7c3 [1:49:51]
+$ ls
+cache-id  diff  parent  size  tar-split.json.gz
+
+# root @ localhost in /var/lib/docker/image/overlay2/layerdb/sha256/b17c024283d0302615c6f0c825137da9db607d49a83d2215a79733afbbaeb7c3 [1:49:52]
+$ cat diff
+sha256:365386a39e0ea80fcf2a4e3a3cd0e490f073d976133b96dd7f5e2cd1579a8ff5#
+# root @ localhost in /var/lib/docker/image/overlay2/layerdb/sha256/b17c024283d0302615c6f0c825137da9db607d49a83d2215a79733afbbaeb7c3 [1:49:55]
+$ cat parent
+sha256:13cb14c2acd34e45446a50af25cb05095a17624678dbafbcc9e26086547c1d74#
+# root @ localhost in /var/lib/docker/image/overlay2/layerdb/sha256/b17c024283d0302615c6f0c825137da9db607d49a83d2215a79733afbbaeb7c3 [1:49:58]
+$ cat size
+328574#
+# root @ localhost in /var/lib/docker/image/overlay2/layerdb/sha256/b17c024283d0302615c6f0c825137da9db607d49a83d2215a79733afbbaeb7c3 [1:50:01]
+$ cat cache-id
+4d3692d2d7417047be380de1a9fabab3c1a9ccebae94e72bb861ebfbc2e3d8a1#
+# root @ localhost in /var/lib/docker/image/overlay2/layerdb/sha256/b17c024283d0302615c6f0c825137da9db607d49a83d2215a79733afbbaeb7c3 [1:50:09]
+$
+```
 
 
 
+- diff ，表示该层的diff id。我们上面谈过，假如最底层的layer为1的话，那么第n+1层的chainID是通过第n层的chainID和第n+1层的diff id计算的到的。
+
+- parent，表示该层的父层的chainID，可以看到`b17c024283d0302615c6f0c825137da9db607d49a83d2215a79733afbbaeb7c3`的父层chainID为`13cb14c2acd34e45446a50af25cb05095a17624678dbafbcc9e26086547c1d74`，符合预期
+
+- size，表示该层的大小，单位为字节
+
+- cache-id，内容为一个uuid，指向当前layer本地的真正存储位置，那么Layer本地真正的存储位置又在何处呢？便是上面提到的`/var/lib/docker/overlay2`目录下：
+
+  ```
+  # root @ localhost in /var/lib/docker/overlay2/4d3692d2d7417047be380de1a9fabab3c1a9ccebae94e72bb861ebfbc2e3d8a1 [1:56:26]
+  $ ls
+  committed  diff  link  lower  work
+  
+  # root @ localhost in /var/lib/docker/overlay2/4d3692d2d7417047be380de1a9fabab3c1a9ccebae94e72bb861ebfbc2e3d8a1 [1:56:27]
+  $
+  
+  ```
+
+  
+
+### image/overlay2/layerdb/mounts
+
+前面谈到了容器的镜像的分层，主要是讲了只读的镜像层。
+
+对于容器来说，最上面还有1个读写层？这个读写层（容器层）的元数据在哪里呢？
+
+就在`/var/lib/docker/image/overlay2/layerdb/mounts`。
+
+```shell
+# root @ localhost in /var/lib/docker/image/overlay2/layerdb/mounts [0:35:13]
+$ ls
+08e7bc15643a6007b5d5a83924609098a17bce6fa5e762692d5c3044441b3555
+1a16698a9171bc346a1ab3f38af216e717961e37fef43a27d0bdff5b01312862
+22b11143a9b8460d4e4e038abd96d8ecea2ed3b386ad4db126bd1c0498f7cce2
+39e2b86aafb681cb108ddba0d2bca4df78e4c6a076fce3645041e474ec8038c1
+421b4dda3fb02cf3501f455da361689b92acdd2f501d7a66b999d679c4330d37
+4da4d33017bccec9f652b1367889e05ee69e3819377590b5a0ad0790d9ca8f2c
+51f328e0ef59d81656d96d2956edd79e4ffbd75c180abe8caa3942444f77e254
+60cb48e437a899c9098dd1f01c3c8bb706d83fd04cfbc6caee99f1d1e6688fbb
+73514c85ac1c77c18ff76753b9cf76b92a7aef57ede9d33c01e0c8f816347061
+76094f299ac09e1c118046ab546af159735fe845ce434c44c260f5697faf6e39
+7802c0ee9df78328ba0763a772ce526462634bcf654795ba073c1b1e06b4cc51
+82157fef780af00830d161c3aff0d119b3ce2c3af72f671f737f30cedde787b4
+97d1eaba61126712182a0ee1de4fbf5eec949efbe3ca15df2f6515a68888a95c
+99c34998fe083bd9e64d91b2116abdb7d0fdcb6aa0c176de624903f38e64610f
+c05163f474ee057edfb03e46226f68a25408add072f0b93c675851d09bfe57c4
+f7a6a316d34bcd72f31db72c89f873f130ce946091422607e227c3d8df276c07
+fc992d035ff63c391f27ca0594097227d2e7f7ef47911377548f1fff63c2c771
+
+# root @ localhost in /var/lib/docker/image/overlay2/layerdb/mounts [0:35:13]
+$
+```
+
+可以看到，有17个目录，这17个对应的就是17个容器的ID。
+
+```bash
+# root @ localhost in /var/lib/docker/image/overlay2/layerdb/mounts [0:35:13]
+$ docker ps -a
+CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS                    PORTS               NAMES
+22b11143a9b8        mysql:5.7           "docker-entrypoint.s…"   2 weeks ago         Exited (0) 34 hours ago                       mysql-5.7
+97d1eaba6112        mysql:5.6           "docker-entrypoint.s…"   2 weeks ago         Exited (0) 34 hours ago                       mysql-test
+421b4dda3fb0        mysql               "docker-entrypoint.s…"   3 weeks ago         Exited (0) 3 weeks ago                        loving_lichterman
+08e7bc15643a        mysql               "docker-entrypoint.s…"   3 weeks ago         Exited (1) 3 weeks ago                        pedantic_brown
+7802c0ee9df7        mysql               "docker-entrypoint.s…"   3 weeks ago         Exited (1) 3 weeks ago                        busy_robinson
+76094f299ac0        nginx               "/docker-entrypoint.…"   3 weeks ago         Exited (0) 3 weeks ago                        serene_ellis
+fc992d035ff6        nginx               "/docker-entrypoint.…"   3 weeks ago         Exited (0) 3 weeks ago                        condescending_wilbur
+82157fef780a        ubuntu              "/bin/bash"              4 weeks ago         Exited (0) 3 weeks ago                        admiring_davinci
+73514c85ac1c        ubuntu              "/bin/bash"              4 weeks ago         Exited (0) 3 weeks ago                        dazzling_banzai
+51f328e0ef59        ubuntu              "/bin/bash"              4 weeks ago         Exited (0) 3 weeks ago                        awesome_ride
+4da4d33017bc        ubuntu              "cat /etc/os-release"    4 weeks ago         Exited (0) 3 weeks ago                        jolly_proskuriakova
+c05163f474ee        ubuntu              "/bin/bash"              4 weeks ago         Exited (0) 3 weeks ago                        trusting_spence
+1a16698a9171        ubuntu              "/bin/bash"              4 weeks ago         Exited (0) 3 weeks ago                        sweet_varahamihira
+f7a6a316d34b        ubuntu              "/bin/bash"              4 weeks ago         Exited (0) 3 weeks ago                        frosty_hamilton
+99c34998fe08        ubuntu              "/bin/bash"              4 weeks ago         Exited (0) 3 weeks ago                        eloquent_chatelet
+39e2b86aafb6        hello-world         "/hello"                 4 weeks ago         Exited (0) 4 weeks ago                        priceless_goldstine
+60cb48e437a8        hello-world         "/hello"                 4 weeks ago         Exited (0) 4 weeks ago                        frosty_payne
+
+```
+
+还是以`mysql 5.7`容器为例，即`22b11143a9b8`这个。
+
+```bash
+# root @ localhost in /var/lib/docker/image/overlay2/layerdb/mounts/22b11143a9b8460d4e4e038abd96d8ecea2ed3b386ad4db126bd1c0498f7cce2 [0:43:16]
+$ ls
+init-id  mount-id  parent
+
+# root @ localhost in /var/lib/docker/image/overlay2/layerdb/mounts/22b11143a9b8460d4e4e038abd96d8ecea2ed3b386ad4db126bd1c0498f7cce2 [0:43:28]
+$ cat init-id
+885c42c9d4f8a3b91a7ac832a11d65839503fad8b01aa972a470e91bf7c121e9-init#
+# root @ localhost in /var/lib/docker/image/overlay2/layerdb/mounts/22b11143a9b8460d4e4e038abd96d8ecea2ed3b386ad4db126bd1c0498f7cce2 [0:43:30]
+$ cat mount-id
+885c42c9d4f8a3b91a7ac832a11d65839503fad8b01aa972a470e91bf7c121e9#
+# root @ localhost in /var/lib/docker/image/overlay2/layerdb/mounts/22b11143a9b8460d4e4e038abd96d8ecea2ed3b386ad4db126bd1c0498f7cce2 [0:43:31]
+$ cat parent
+sha256:98de3e212919056def8c639045293658f6e6022794807d4b0126945ddc8324be#
+# root @ localhost in /var/lib/docker/image/overlay2/layerdb/mounts/22b11143a9b8460d4e4e038abd96d8ecea2ed3b386ad4db126bd1c0498f7cce2 [0:43:35]
+$
+
+```
+
+有三个文件
+
+- init-id，
+- mount-id，容器读写层的mountID
+- parent，表示这个容器层的上一层是谁，上面例子中，parent是`98de3e212919056def8c639045293658f6e6022794807d4b0126945ddc8324be`，这个是啥？`98de3e212919056def8c639045293658f6e6022794807d4b0126945ddc8324be`是镜像`mysql 5.7`的最顶层，就是说容器层的parent就是镜像的最顶层
+
+可以看到对于每个运行过的容器来说，除了和镜像有关的layer的元数据是放在`/var/lib/docker/image/overlay2/layerdb/sha256`下面。和当前这个运行过的容器来说，还有2个layer需要关注，分别是只读的init-layer和可写的mount layer。
+
+init-layer包含了docker为容器准备的一些文件，mount-layer则用于保存以后对rootfs的增删改操作结果。
+
+docker将容器的layer和image的layer的元数据放在不同的目录。
+
+一个是
+
+```
+/var/lib/docker/image/overlay2/layerdb/mounts
+```
+
+一个是
+
+```
+/var/lib/docker/image/overlay2/layerdb/sha256
+```
 
 
 
+### layer的数据
+
+上面我们讲了容器的元数据。
+
+容器的元数据主要包括镜像的元数据，以及docker为这个容器创建的2个新layer的元数据。
+
+镜像的元数据放在`/var/lib/docker/image/overlay2/layerdb/sha256`，新建的2层layer的元数据放在`/var/lib/docker/image/overlay2/layerdb/mounts`。
+
+那layer的数据放在那里呢？
+
+```
+/var/lib/docker/overlay2
+```
+
+这个目录存放的是各个layer的数据。
+
+我们还是以`mysql 5.7`容器为例，我们看下docker为这个容器新建的2层layer都有些啥数据。
+
+```bash
+$ ls  /var/lib/docker/overlay2/885c42c9d4f8a3b91a7ac832a11d65839503fad8b01aa972a470e91bf7c121e9
+885c42c9d4f8a3b91a7ac832a11d65839503fad8b01aa972a470e91bf7c121e9/
+885c42c9d4f8a3b91a7ac832a11d65839503fad8b01aa972a470e91bf7c121e9-init/
+```
+
+init-layer和mount-layer。
 
 
 ### docker镜像生成的container存在哪儿？
@@ -626,6 +816,16 @@ $
 16. `docker exec -it ${CONTAINER NAME/ID} /bin/bash`，进入容器内
 
 17. `docker run IMAGE[:TAG]`，run某个版本的镜像。比如`docker run -itd --name mysql-test -p 3307:3306 -e MYSQL_ROOT_PASSWORD=123456 mysql:5.6`，启动的就是mysql 5.6。
+
+18. 如果你觉得容器的名字不好记，可以rename一下。`docker rename [CONTAINER ID] newname`。
+
+19. 拷贝文件，`docker container cp`，用于从正在运行的 Docker 容器里面，将文件拷贝到本机；或者将本机的文件拷贝到容器。
+
+    ```
+    docker container cp [containID]:[/path/to/file] .
+    ```
+
+20.     删除容器，`docker rm xxx`。
 
 ## 参考
 

@@ -57,3 +57,83 @@ $ mount -t overlay -o lowerdir=lower,upperdir=upper,workdir=work overlay merge
 ```
 
 挂载一个OverlayFS文件系统，挂载点为目录`merge`。
+
+```bash
+# root @ localhost in ~/playground/test_overlay [1:20:27]
+$ echo "i'm file:f1 from lower" > lower/f1.txt
+
+# root @ localhost in ~/playground/test_overlay [1:20:54]
+$ echo "i'm file:f2 from lower" > lower/f2.txt
+
+# root @ localhost in ~/playground/test_overlay [1:21:36]
+$ echo "i'm file:f3 from upper" > upper/f3.txt
+
+# root @ localhost in ~/playground/test_overlay [1:21:52]
+$ tree
+.
+├── lower
+│   ├── f1.txt
+│   └── f2.txt
+├── merge
+│   ├── f1.txt
+│   ├── f2.txt
+│   └── f3.txt
+├── upper
+│   └── f3.txt
+└── work
+    └── work
+
+5 directories, 6 files
+```
+
+我们在lower目录创建了f1.txt和f2.txt两个文件，在upper目录创建了f3.txt文件。
+
+我们在merge目录看到了f1.txt, f2.txt和f3.txt 这三个文件，其中f1.txt和f2.txt来自lower目录，f3.txt来自upper目录。
+
+我们在merge目录对文件f3.txt的修改，实际上就是对upper目录中f3.txt文件的修改。
+
+```bash
+# root @ localhost in ~/playground/test_overlay/merge [13:22:21]
+$ echo "changes were made from merge dir" >> f3.txt
+
+# root @ localhost in ~/playground/test_overlay/merge [13:23:19]
+$ cat ../upper/f3.txt
+i'm file:f3 from upper
+changes were made from merge dir
+
+# root @ localhost in ~/playground/test_overlay/merge [13:23:23]
+$
+```
+
+
+
+我们在merge目录对文件f2.txt的修改，OverlayFS会将lower目录中的f2.txt拷贝到upper目录，并对其做修改。lower目录中的f2.txt不会改变。此时，upper目录中的f2.txt会覆盖lower目录的f2.txt，我们再merge目录看到的f2.txt实际上就是upper目录中的f2.txt文件。
+
+```bash
+# root @ localhost in ~/playground/test_overlay/merge [13:24:27]
+$ echo "changes were made from merge dir" >> f2.txt
+
+# root @ localhost in ~/playground/test_overlay/merge [13:24:43]
+$ cat ../lower/f2.txt
+i'm file:f2 from lower
+
+# root @ localhost in ~/playground/test_overlay/merge [13:24:50]
+$ ls -l ../upper/
+总用量 8
+-rw-r--r--. 1 root root 56 7月  26 13:24 f2.txt
+-rw-r--r--. 1 root root 56 7月  26 13:23 f3.txt
+
+# root @ localhost in ~/playground/test_overlay/merge [13:25:03]
+$ cat ../upper/f2.txt
+i'm file:f2 from lower
+changes were made from merge dir
+
+# root @ localhost in ~/playground/test_overlay/merge [13:25:08]
+$
+```
+
+
+
+
+
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/overlayfs2.png)

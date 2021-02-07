@@ -190,6 +190,34 @@ Mode: follower
 	
 ```
 
+# 有可能启动失败
+
+```
+2021-02-04 00:33:52,496 [myid:3] - WARN  [WorkerSender[myid=3]:QuorumCnxManager@584] - Cannot open channel to 1 at election address vm1/192.168.6.160:3888
+java.net.NoRouteToHostException: 没有到主机的路由 (Host unreachable)
+        at java.net.PlainSocketImpl.socketConnect(Native Method)
+        at java.net.AbstractPlainSocketImpl.doConnect(AbstractPlainSocketImpl.java:476)
+        at java.net.AbstractPlainSocketImpl.connectToAddress(AbstractPlainSocketImpl.java:218)
+        at java.net.AbstractPlainSocketImpl.connect(AbstractPlainSocketImpl.java:200)
+        at java.net.SocksSocketImpl.connect(SocksSocketImpl.java:394)
+        at java.net.Socket.connect(Socket.java:606)
+        at org.apache.zookeeper.server.quorum.QuorumCnxManager.connectOne(QuorumCnxManager.java:558)
+        at org.apache.zookeeper.server.quorum.QuorumCnxManager.toSend(QuorumCnxManager.java:534)
+        at org.apache.zookeeper.server.quorum.FastLeaderElection$Messenger$WorkerSender.process(FastLeaderElection.java:454)
+        at org.apache.zookeeper.server.quorum.FastLeaderElection$Messenger$WorkerSender.run(FastLeaderElection.java:435)
+        at java.lang.Thread.run(Thread.java:748)
+2021-02-04 00:33:52,498 [myid:3] - INFO  [WorkerSender[myid=3]:QuorumPeer$QuorumServer@185] - Resolved hostname: vm1 to address: vm1/192.168.6.160
+2021-02-04 00:33:52,500 [myid:3] - WARN  [WorkerSender[myid=3]:QuorumCnxManager@584] - Cannot open channel to 2 at election address vm2/192.168.6.161:3888
+```
+
+查看启动日志（zookeeper.out），可以看到上述报错，这可能是由于机器防火墙的问题。
+
+```
+iptables -F
+systemctl stop firewalld.service
+systemctl disable firewalld.service
+```
+
 ## zookeeper提供了什么
 
 简单地说，zookeeper = 文件系统 + 通知机制。

@@ -17,3 +17,47 @@
 	authorized_keys:存放远程免密登录的公钥,主要通过这个文件记录多台机器的公钥，上面提到的A端在生成自己的公私钥之后，将公钥追加到authorized_keys文件后面。
 
 	know_hosts : 已知的主机公钥清单，这个作为A端和B端都会自动生成这个文件，每次和远端的服务器进行一次免密码ssh连接之后就会在这个文件的最后追加对方主机的信息（不重复）
+
+### 配置免密登录方式
+
+比如有三台机器，vm1，vm2和vm3。
+
+首先分别登录三台机器，执行`ssh-keygen -t rsa`，生成秘钥。这样在三台机器的`.ssh`目录下就会有秘钥文件。
+
+```shell
+# root @ localhost in ~/.ssh [0:42:32]
+$ ls
+authorized_keys  id_rsa  id_rsa.pub  known_hosts
+
+# root @ localhost in ~/.ssh [0:42:34]
+$
+```
+
+然后在vm1执行，
+
+```
+cat id_rsa.pub >> authorized_keys
+scp authorized_keys root@vm2:~/.ssh/
+```
+
+在vm2执行，
+
+```shell
+cat id_rsa.pub >> authorized_keys
+scp authorized_keys root@vm3:~/.ssh/
+```
+
+在vm3执行，
+
+```shell
+cat id_rsa.pub >> authorized_keys
+scp authorized_keys root@vm1:~/.ssh/
+```
+
+在vm1执行，
+
+```shell
+scp authorized_keys root@vm2:~/.ssh/
+```
+
+这样，三台机器vm1、vm2、vm3的authorized_keys文件都有各自的公钥了。

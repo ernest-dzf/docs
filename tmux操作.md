@@ -87,7 +87,7 @@
 		$ 
 
 
-- **固定window的名字** 
+7. 固定window的名字
 	
 		有时候，想固定一个window的名字，可以这样
 	
@@ -103,18 +103,32 @@
 
 
 
-7. 移动pane
+8. 移动pane
 
    可以使用`ctrl b {`或者`ctrl b }`在不同的pane之间移动。
 
    
 
-8. 在不同的pane之间批量操作。
+9. 在不同的pane之间批量操作。
    `ctrl b`，然后执行`: set synchronize-panes on`开启批量操作。
 
-8. 参考文章
+10. 多个pane同时操作
 
-  [linux安装tmux](https://blog.csdn.net/lijing742180/article/details/80663878 "linux安装tmux")
+   ```
+   # victordong @ VICTORDONG-MB1 in ~ [1:03:38]
+   $ cat .tmux.conf
+   bind-key s setw synchronize-panes
+   
+   # victordong @ VICTORDONG-MB1 in ~ [1:03:44]
+   $
+   
+   ```
 
-  [tmux终端复用详解](https://www.cnblogs.com/wangqiguo/p/8905081.html#_labelTop "tmux终端复用详解")
+   增加这个配置文件，然后在tmux中，`ctrl+b :`，输入`source-file ~/.tmux.conf`。这样，就可以通过快捷键，`ctrl+b s`在多pane操作和单pane操作 之间进行切换了。
+
+11. 参考文章
+
+   [linux安装tmux](https://blog.csdn.net/lijing742180/article/details/80663878 "linux安装tmux")
+
+   [tmux终端复用详解](https://www.cnblogs.com/wangqiguo/p/8905081.html#_labelTop "tmux终端复用详解")
 

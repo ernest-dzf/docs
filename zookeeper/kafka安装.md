@@ -97,6 +97,8 @@ $
 
 **最重要的参数**
 
+![](https://raw.githubusercontent.com/ernest-dzf/docs/master/pic/kafka-config-1.jpg)
+
 ### 启动
 
 配置好之后，可以分别启动各个broker。
@@ -165,9 +167,15 @@ $ ./kafka-topics.sh --list --zookeeper vm1:2181
   # root @ localhost in ~/kafka/bin [10:53:50]
   $
   ```
-
-
-
+  
+  在创建topic的时候，如果不特殊指定topic的配置，那么使用的就是全局的topic配置。当然你也可以在创建topic的时候手动指定参数，
+  
+  ```
+  bin/kafka-topics.sh --bootstrap-server localhost:9092 --create --topic my-topic --partitions 1 --replication-factor 1 --config max.message.bytes=64000 --config flush.messages=1
+  ```
+  
+  
+  
 3. 查看topic信息
 
   ```shell
@@ -177,11 +185,11 @@ $ ./kafka-topics.sh --list --zookeeper vm1:2181
           Topic: wind     Partition: 0    Leader: 0       Replicas: 0,1,2 Isr: 0,1,2
           Topic: wind     Partition: 1    Leader: 1       Replicas: 1,2,0 Isr: 1,2
           Topic: wind     Partition: 2    Leader: 2       Replicas: 2,0,1 Isr: 2,1
-
+  
   # root @ localhost in ~/kafka/bin [1:56:41]
   $
   ```
-对于新版本kafka，也可以不指定zk，
+  对于新版本kafka，也可以不指定zk，
 
   ```shell
   # root @ localhost in ~/kafka/bin [10:56:06]
@@ -190,14 +198,14 @@ $ ./kafka-topics.sh --list --zookeeper vm1:2181
   Topic: wind     Partition: 0    Leader: 0       Replicas: 0,1,2 Isr: 1,0,2
   Topic: wind     Partition: 1    Leader: 1       Replicas: 1,2,0 Isr: 1,0,2
   Topic: wind     Partition: 2    Leader: 2       Replicas: 2,0,1 Isr: 1,0,2
-
+  
   # root @ localhost in ~/kafka/bin [10:58:56]
   $ ./kafka-topics.sh --describe --bootstrap-server vm1:9092 --topic victor
   Topic: victor   PartitionCount: 3       ReplicationFactor: 3    Configs: segment.bytes=1073741824
   Topic: victor   Partition: 0    Leader: 2       Replicas: 2,1,0 Isr: 2,1,0
   Topic: victor   Partition: 1    Leader: 1       Replicas: 1,0,2 Isr: 1,0,2
   Topic: victor   Partition: 2    Leader: 0       Replicas: 0,2,1 Isr: 0,2,1
-
+  
   # root @ localhost in ~/kafka/bin [10:59:03]
   $
   ```
@@ -238,7 +246,23 @@ $ ./kafka-topics.sh --list --zookeeper vm1:2181
 
 	然后stop kafka，再重启。
 
-5. 消费消息
+5. 修改主题分区
+   其实就是增加分区，目前 Kafka 不允许减少某个主题的分区数
+
+   ```
+   bin/kafka-topics.sh --bootstrap-server broker_host:port --alter --topic <topic_name> --partitions <新分区数>
+   ```
+
+6. 修改主题级别参数
+
+   ```
+   bin/kafka-configs.sh --zookeeper zookeeper_host:port --entity-type topics --entity-name <topic_name> --alter --add-config max.message.bytes=10485760
+   ```
+
+   **也许你会觉得奇怪，为什么这个脚本就要指定 --zookeeper，而不是 --bootstrap-server 呢？**其实，这个脚本也能指定 --bootstrap-server 参数，只是它是用来设置动态参数的。
+   你只需要了解设置常规的主题级别参数，还是使用 --zookeeper。
+
+7. 消费消息
 
    ```shell
    # root @ localhost in ~/kafka/bin [13:18:21]
@@ -303,3 +327,26 @@ $ ./kafka-topics.sh --list --zookeeper vm1:2181
    其中，`consumer-testgroup-1-c80d3325-1856-41ea-ac6d-2f7b16d1677d`承担`partition-2`的消费，`consumer-testgroup-1-80a72bad-1209-4a92-a088-420e3242ab20`承担`partition-0`和`partition-1`这2个partition的消费。对于1个consumer-group的不同消费者来说，他们不能消费1个topic的同1个partition。
 
    1个消费组下的consumer消费到了哪个offset呢？这些信息都是有保存在kafka中的。所以你如果重启`kafka-console-consumer.sh`脚本，但是使用同1个groupid，那么他不会从头开始消费，而是从上次消费到的offset开始。
+
+7. 修改topic级别参数
+   如果在创建topic的时候，你使用的是默认的全局topic配置，后面又想改，可以这样，
+
+   ```
+   bin/kafka-configs.sh --bootstrap-server localhost:9092 --entity-type topics --entity-name my-topic --alter --add-config max.message.bytes=128000
+   ```
+
+   比如，
+
+   ```shell
+   [root@vm2 bin]# ./kafka-configs.sh --bootstrap-server vm1:9092 --entity-type topics --entity-name wind --describe
+   Dynamic configs for topic wind are:
+   [root@vm2 bin]# ./kafka-configs.sh --bootstrap-server vm1:9092 --entity-type topics --entity-name wind --alter --add-config max.message.bytes=128000
+   Completed updating config for topic wind.
+   [root@vm2 bin]# ./kafka-configs.sh --bootstrap-server vm1:9092 --entity-type topics --entity-name wind --describe
+   Dynamic configs for topic wind are:
+     max.message.bytes=128000 sensitive=false synonyms={DYNAMIC_TOPIC_CONFIG:max.message.bytes=128000, DEFAULT_CONFIG:message.max.bytes=1048588}
+   [root@vm2 bin]#
+   ```
+
+   
+

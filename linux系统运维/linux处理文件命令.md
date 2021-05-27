@@ -57,3 +57,4 @@
 	```
 	grep "POST" shark.log|grep -o -E "interfaceName.*para"|awk -F '["]' '{print $3}'|sort|uniq	
 	```
+

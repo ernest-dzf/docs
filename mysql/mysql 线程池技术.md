@@ -124,9 +124,16 @@ thread_count代表线程组中的总线程数，active_thread_count代表当前�
 
 - **Threads_running**
   表示busy的线程数目？
+  
+  >Threads connected means the total number of client processes (threads) connected to the database server. This includes the count for threads running.
+  
+  > Thread running means the total number of client processes (threads) currently executing on the database server. The server is holding these connections while the client is waiting for a reply. These thread may be consuming IO/CPU, while others may do nothing while waiting for a table lock to be released. When the database is finished executing the thread, the client gets a reply, and the thread is changed from status "running" to "connected".
+
+## 
 
 ## 参考文章
 
 1. https://blog.csdn.net/u012662731/article/details/54375137
 2. https://blog.csdn.net/Stubborn_Cow/article/details/50246043
 3. https://dbaplus.cn/news-11-1989-1.html
+4. https://my.oschina.net/andylucc/blog/820624
